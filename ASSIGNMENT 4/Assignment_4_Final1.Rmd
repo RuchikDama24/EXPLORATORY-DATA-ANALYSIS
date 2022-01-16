@@ -1,0 +1,134 @@
+---
+title: "Assignment_4_Final"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(mgcv)
+library(readr)
+library("metR")
+```
+
+
+```{r}
+basics=read_tsv("data_basics.tsv", na = "\\N", quote = '')
+ratings=read_tsv("data_ratings.tsv", na = "\\N", quote = '')
+```
+
+```{r}
+head(basics)
+head(ratings)
+```
+
+#### Merge the two data frames
+```{r}
+df<- merge(basics,ratings,by='tconst')
+head(df)
+```
+
+
+#### Subset the data frame for only movies
+```{r}
+df<-df[df$titleType=='movie',]
+head(df)
+```
+
+#### Check shape 
+```{r}
+dim(df)
+```
+
+#### Checking for null values
+```{r}
+sapply(df, function(x) sum(is.na(x)))
+```
+
+
+#### Considering only the required columns into consideration
+```{r}
+df<-df[c('startYear','runtimeMinutes','averageRating','numVotes')]
+head(df)
+```
+
+#### Dropping all those rows with NA values.
+```{r}
+print('before dropping null values')
+dim(df)
+df<-na.omit(df)
+dim(df)
+```
+
+#### check distributions of each independent variable
+```{r}
+#ggplot(df,aes(x=startYear))+geom_density()+xlab('start year')+ylab('count')+ggtitle('Year distribution')
+
+#ggplot(df,aes(x=runtimeMinutes))+geom_density()+xlab('runtime')+ylab('Count')+xlim(50,200)+ggtitle('runtime distribution')
+
+#ggplot(df,aes(x=averageRating))+geom_density()+xlab('averageRating')+ylab('count')+ggtitle('averageRating distribution')
+
+```
+
+```{r}
+summary(df)
+```
+
+#### It looks like there are a lot of outliers for the runtimeMinutes. Philosophically,<br>Movies tend to be in the range of 50 minutes (shroter movies) to 200 minutes(longer movies)<br>Dropping all movies with length lesser than 50 and greater than 200 minutes
+```{r}
+df<-subset(df,df$runtimeMinutes<200 & df$runtimeMinutes>50)
+dim(df)
+```
+
+
+
+### lm model
+```{r}
+model <- lm(averageRating~startYear+runtimeMinutes,weights=numVotes,data=df)
+summary(model)
+```
+
+##weighted
+```{r}
+model <- gam(averageRating~startYear+s(runtimeMinutes),data=df,weights=numVotes,method='REML')
+summary(model)
+```
+
+
+```{r}
+model.df = data.frame(df,
+                   .fitted = fitted.values(model),
+                   .resid = residuals(model))
+head(model.df)
+```
+
+```{r}
+merge.grid=expand.grid(runtimeMinutes=50:200,startYear=1896:2021)
+merge.predict=predict(model,newdata=merge.grid)
+merge.grid.df=data.frame(merge.grid,avgRating=as.vector(merge.predict))
+```
+
+
+```{r}
+head(merge.grid.df)
+```
+
+```{r}
+ggplot(merge.grid.df, aes(x = runtimeMinutes, y=avgRating)) + geom_point()+
+geom_smooth(method='gam')+
+facet_wrap(~cut_width(merge.grid.df$startYear,10))+
+ggtitle('AverageRating vs RuntimeMinutes')+
+labs(subtitle = "Cut by Years in Decades")
+```
+
+#contour plot
+```{r,fig.height=7,fig.width=12}
+ggplot(merge.grid.df,aes(x = runtimeMinutes, y = startYear, z =avgRating,fill=avgRating))+geom_raster()+
+  scale_fill_distiller(palette = "RdYlBu")+ 
+  geom_contour()+
+  geom_text_contour()+
+  ggtitle('Raster and Counter')
+```

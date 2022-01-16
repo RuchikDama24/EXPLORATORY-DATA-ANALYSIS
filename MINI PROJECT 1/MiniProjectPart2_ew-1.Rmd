@@ -1,0 +1,254 @@
+---
+title: "MninProject_part2_new"
+author: "Aniket Kale"
+date: "10/18/2021"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include=FALSE}
+library(MASS)
+library(tidyverse)
+library(broom)
+library(readxl)
+library(tidycensus)
+library(arm)
+library(janitor)
+library(wrapr)
+census_api_key("10f0d49b7a43755878e4706e12c9b552b96428f7")
+
+```
+
+```{r, include=FALSE}
+cpi = read.csv("../Mini project 1/cpi.csv")
+pop = read.csv("../Mini project 1/population.csv")
+areas = read.csv("https://raw.githubusercontent.com/jakevdp/data-USstates/master/state-areas.csv", stringsAsFactors=FALSE, fileEncoding="latin1")
+
+scode = read.delim("../Mini project 1/statecodes.txt", header=F, sep=" ")
+
+hpi = read_excel("../Mini project 1/State_and_US_SA.xls", skip=5)
+population_2018 = get_acs(geography = "state", 
+              variables = c(Total = "B01003_001"), 
+              year = 2018)
+```
+
+```{r, include=FALSE}
+scode = read.delim("../Mini project 1/statecodes.txt", header=F, sep=" ")
+
+```
+
+
+```{r, include=FALSE}
+scode = scode %>% dplyr::select(c("V2", "V3"))
+# scode = na.omit(scode)
+# scode[nrow(scode) + 1,] = c("HI","HAWAII")
+scode[which(scode[,1] == "WV", arr.ind=TRUE), 2] = "WESTVIRGINIA"
+```
+
+```{r, include=FALSE}
+hpi.decades = hpi %>% filter( Month %in% c("1975M12", "2018M12"))
+
+hpi.decades.t = data.frame(t(hpi.decades))
+hpi.decades.t = hpi.decades.t %>%
+  row_to_names(row_number = 1)
+hpi.decades.t = cbind(ST = rownames(hpi.decades.t), hpi.decades.t)
+rownames(hpi.decades.t) <- 1:nrow(hpi.decades.t)
+hpi.decades.t$"1975M12" = as.numeric(hpi.decades.t$"1975M12")
+hpi.decades.t$"2018M12" = as.numeric(hpi.decades.t$"2018M12")
+
+```
+
+```{r, include=FALSE}
+hpi.decades.t = hpi.decades.t %>% mutate(
+  avgDiff = 100*(hpi.decades.t$"2018M12" - hpi.decades.t$"1975M12")/hpi.decades.t$"1975M12"
+  # /"1975M12"
+)
+```
+
+```{r, include=FALSE}
+pop.density.2018 = merge(
+  x=population_2018,
+  y=areas,
+  by.x="NAME", by.y="state")
+pop.density.2018 = pop.density.2018 %>%
+  mutate(
+    density = estimate/ area..sq..mi.,
+    NAME = toupper(NAME)
+    
+  )
+pop.density.2018 = pop.density.2018 %>%
+  mutate(NAME = str_replace_all(string=NAME, pattern=" ", repl=""))
+```
+
+```{r, include=FALSE}
+# pop.density = 
+pop.density.2018.merged = merge(
+  x=pop.density.2018,
+  y=scode,
+  by.x="NAME", by.y="V3") 
+pop.density.2018.merged = pop.density.2018.merged[,c( "NAME", "estimate", "area..sq..mi.","density", "V2")]
+    # NAME, estimate, area..sq..mi.,density, V2
+
+      # )
+
+names(pop.density.2018.merged)[length(names(pop.density.2018.merged))] = "ST"
+```
+```{r, include=FALSE}
+
+hpi_plot = merge(x=pop.density.2018.merged,
+y = hpi.decades.t,
+by.x = "ST", by.y="ST") %>%
+  dplyr::select(c("ST", "NAME", "density", "avgDiff"))
+hpi_plot
+```
+
+```{r, warning=FALSE,echo=FALSE}
+ggplot(hpi_plot, aes(x=density, y=avgDiff)) +
+  geom_point(color="darkblue", size=1, shape=15) +
+  # geom_smooth(method = "lm",color="turquoise", se=F)+
+  # geom_smooth(method = "rlm", color="orange",se=F)+
+  labs(title = "Present day population density v/s change in house prices",
+          subtitle = "Both metrics considering all US States (incl. DC)",
+          caption = "HPI: House Price Index")+
+  xlab("Population density (2018)")+
+  ylab("% change in HPI 2018 and 1975")+
+  theme_bw()
+  
+```
+#### Observations:
+* IT can be seen that there is one very inflencial outlier in the above plot.
+* We can remove this outlier to find a structured relationship between the *x* & *y* variable.
+* Removing outliers would allow us to see the general trend in the data, which is being influenced by one data point to the very far right.
+
+### State for the influencial outlier:
+```{r, warning=FALSE,echo=FALSE}
+hpi_plot %>% 
+  filter(
+    density > 2500
+  ) 
+```
+* The outlier data-point is for 'District of Columbia' aka 'DC'.
+* The reason behind this data-point being an outlier is that it had high population, smaller area, thus high density. Also DC has high increase in % HPI. This could be exaplined becasue of the political imporance of the place.
+
+```{r, warning=FALSE,echo=FALSE}
+# colors <- c("gam" = "darkgreen", "rlm" = "orange", "lm" = "turquoise")
+colors <- c("rlm" = "orange", "lm" = "turquoise")
+
+hpi_plot %>% 
+  filter(
+    density < 2500
+  ) %>%
+  ggplot( aes(x=density, y=avgDiff)) +
+  geom_point(color="darkblue", size=1, shape=15) +
+  geom_smooth(method = "lm", se=F, aes(color="lm"))+
+  geom_smooth(method = "rlm", se=F, aes(color="rlm"))+
+  # geom_smooth(method = "gam", se=F, aes(color="gam"))+
+  
+  labs(
+    title = "Present day population density v/s change in house prices",
+    subtitle = "Both metrics considering all US States (excl. DC)",
+    caption = "HPI: House Price Index",
+    color = "Legend",
+    x = "Population density (2018)",
+    y = "% change in HPI 2018 and 1975")+
+  scale_color_manual(values = colors)+
+  theme_bw()
+```
+### Outliers and downweighing outliers:
+* Outlier (STATE= DC) was removed.
+* After fitting lm, rlm, gam; we can see that the *robust linear model* line is shifting downwards (intercept changing, slope stays the same) as compared to the linear model line. This could be because  *robust linear model* downweighs the points which belong to higher values of % HPI (>750). These points deviate from the general trend and that's why *robust linear model* tries to downweight these points. We can analyze which states do these points belong to below.
+* GAM is almost linear, hence it's not worth plotting a smooth model.
+
+#### States downweighed by *robust linear model*:
+```{r, warning=FALSE,echo=FALSE}
+hpi_plot %>% filter(avgDiff>750) %>% dplyr::select(NAME)
+```
+
+#### Observations:
+* We can see an upwards trend. However, most of the data-points lie towards the left-side of the plot.
+
+#### The following observations can be made after looking at sections of the above plot:
+1. This means there are a lot of states which have similar population density (range 0-500) and not that high increase in the HPI (i.e. range 250-750). In other words, most of the states are clustered around the ranges 0-500 for population density and 250-750 for % change HPI.
+
+2. But there are a few states (5) with lower population density (<500) and higher increase in HPI (>750). 
+```{r, warning=FALSE,echo=FALSE}
+hpi_plot %>% filter(density<500,avgDiff>750) %>% dplyr::select(NAME)
+```
+3. Another set of states (3) have high population density (>500) and but low % increase in HPI (i.e. % HPI < 750)
+```{r, warning=FALSE,echo=FALSE}
+hpi_plot %>% filter(density>500,avgDiff<750) %>% dplyr::select(NAME)
+```
+
+4. One state has high population density and high % increase in HPI. *DC/DISTRICT OF COLUMBIA also fits this decription but DC is excluded in the plot.*
+```{r, warning=FALSE,echo=FALSE}
+hpi_plot %>% filter(density>500,avgDiff>750) %>% dplyr::select(NAME)
+```
+```{r, include=FALSE}
+# hpi_plot %>% filter(density<400,avgDiff>750)
+# hpi_plot %>% filter(density>500,avgDiff<750)
+# hpi_plot %>% filter(density>500,avgDiff>750)
+
+```
+<!-- CT  - doesnt fit basic pattern in Part1 - flat -->
+<!-- NJ, RI - Increasing -->
+
+```{r, include=FALSE}
+west_states = c("WA", "MT", "OR", "ID", "WY", "CA", "NV", "UT", "CO", "AZ", "NM", "HI", "AK")
+midwest_states = c("ND", "MN", "SD", "NE", "IA", "KS", "MO", "WI", "MI", "IL", "IN", "OH")
+northeast_states = c("PA", "NJ", "NY", "CT", "RI", "MA", "VT", "NH", "ME")
+south_states = c("OK", "TX", "AR", "LA", "MS", "AL", "TN", "KY", "GA", "FL", "SC", "NC", "WV", "VA", "DC", "MD", "DE")
+
+hpi_plot_regions = hpi_plot %>% 
+  mutate(region = ifelse(ST %in% west_states, "WEST",
+                     ifelse(ST %in% midwest_states, "MID-WEST",
+                            ifelse(ST %in% northeast_states, "NORTH-EAST",
+                                   ifelse(ST %in% south_states, "SOUTH", "NONE"))))
+                     )
+hpi_plot_regions
+```
+```{r, include=FALSE}
+# hpi_plot_regions %>% filter(region == "NONE")
+```
+
+```{r, warning=FALSE,echo=FALSE}
+colors <- c( "lm" = "turquoise")
+hpi_plot_regions %>% 
+  filter(
+    density < 2500
+  ) %>%
+  ggplot( aes(x=density, y=avgDiff)) +
+  geom_point(color="darkblue", size=1, shape=15) +
+  geom_smooth(method = "lm", se=F, aes(color="lm"))+
+  # geom_smooth(method = "rlm", se=F, aes(color="rlm"))+
+  # geom_smooth(method = "gam", se=F, aes(color="gam"))+
+  
+  labs(
+    title = "Present day population density v/s change in house prices (faceted by 'regions')",
+    subtitle = "Both metrics considering all US States (excl. DC)",
+    caption = "HPI: House Price Index",
+    color = "Legend",
+    x = "Population density (2018)",
+    y = "% change in HPI 2018 and 1975")+
+  scale_color_manual(values = colors)+
+  theme_bw() + 
+  facet_wrap(~region)
+
+```
+#### Observations
+* As compared to the over-all trend, the regions *NORTH-EAST* and *SOUTH* follow a similar trend i.e., slightly upwards trend.
+* However the region *WEST* has a steep upwards trend.
+* And in constrast to all these regions, the region *MID-WEST* sees a very slight downwards trend.
+
+### Interpretations:
+* For *MID-WEST* region the % change in HPI is below 500 and population density is below 250. Which means that the HPI did not change (for all the states in this region) as drastically as it did for the other regions/states. Also the population density of this region is lower, even in 2018.
+* The *SOUTH* region also has similar kind of observation. The change in HPI was on the lower spectrum as well. However, this region has states with low-to-medium level of population density.
+* The *WEST* region has a mix of values for change in HPI over the years. Almost half the states in this region have lower (<500) chnage in HPI as compared to the other half, where the HPI values have changed drastically. It is also important to notice that all the states in this region have population density <250.
+* The states in the *NORTH-EAST* region have some of the higher change in HPI values and the states have varying population densities distributed over the range.
+* These observations as synchronus to the observations we found in the earlier section, with respect to the regions.

@@ -1,0 +1,414 @@
+---
+title: "Final Project"
+author: "Shashank"
+date: "06/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+### Introduction
+The goal of the project is to analyze factors affecting life expectancy. Majorly focusing on the relationship of health care (Expenditure, Immunization) and education with life expectancy
+
+```{r}
+life=read.csv("Life Expectancy cleaned.csv",sep=",",header = TRUE)
+```
+
+# cleaning 
+```{r,message=FALSE}
+#life = read_csv("../Final Project/Life Expectancy Data.csv")
+
+names(life)[4] = "Life_expectancy" 
+names(life)[8] = "percentage_expenditure" 
+names(life)[9] = "HepatitisB"
+names(life)[14] ="Total_expenditure"
+# names(life)
+selected_names = c("Country", "Year", "Status", "Life_expectancy", "percentage_expenditure", "Polio", "Diphtheria", "Total_expenditure", "Schooling")
+life = life%>% dplyr::select(selected_names)
+
+life=na.omit(life)
+```
+
+
+```{r}
+#install.packages("countrycode")
+library(countrycode)
+#life1=life
+#life1 = data.frame(life)
+life=data.frame(life)
+life$continent <- countrycode(sourcevar = life[, "Country"],
+                            origin = "country.name",
+                            destination = "continent")
+sa = c("Argentina", "Brazil", "Chile","Colombia","Ecuador", "Guyana", "Paraguay", "Peru", "Suriname", "Uruguay","Bolivia (Plurinational State of)","Venezuela (Bolivarian Republic of)")
+na=c("Belize","Canada","Costa Rica","Dominican Republic","El Salvador", "Guatemala", "Haiti", "Honduras", "Jamaica", "Mexico","Nicaragua","Panama","Trinidad and Tobago","Bahamas","Barbados","Saint Lucia","Antigua and Barbuda","Cuba","Grenada","Saint Vincent and the Grenadines")
+#life2=data.frame(life1)
+life[which(life$Country %in% sa),]$continent="South America"
+life[which(life$Country %in% na),]$continent="North America"
+
+```
+
+## Trend for Life expectancy 
+
+#### As the year increases the life expenctancy is increasing. Developed countries have a higher life expectancy
+
+```{r, message= False}
+life1=life[,c("Year","continent","Life_expectancy")]
+life_mean=aggregate(Life_expectancy~Year+continent,data=life1,mean)
+
+ggplot(life_mean %>% filter(Year < 2014) ,aes(x = Year , y = Life_expectancy))+
+  geom_point(color=" gray")+
+  geom_smooth(method = 'glm',color="dark blue", se=FALSE)+ 
+  labs(title = "Trend of Life expenctancy over the years by Continents",
+           #caption = "HPI: House Price Index",
+    x=" Year",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~continent)
+
+```
+
+### Health Care related factors:
+1. Expenditure in health care
+2. Polio
+
+
+### Relation of life expectancy with health care factors
+
+```{r}
+ggplot(life %>% filter(Year < 2014) ,aes(x = Total_expenditure, y = Life_expectancy))+
+  geom_point(color=" gray") + #scale_x_log10()+
+  geom_smooth(method="glm",color="dark blue", se=FALSE)+ 
+  #xlim(c(0,50))+
+  labs(title = "Life Expectancy vs Percentage of Expenditure in health care",
+           #caption = "HPI: House Price Index",
+    x=" Percentage_expenditure",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~continent)
+
+```
+
+#### For one year as Brad suggested, kind of have similar trend with all the data points
+
+```{r}
+ggplot(life %>% filter(Year == 2014) ,aes(x = Total_expenditure, y = Life_expectancy))+
+  geom_point(color=" gray") + #scale_x_log10()+
+  geom_smooth(method="glm",color="dark blue", se=FALSE)+ 
+  #xlim(c(0,50))+
+  labs(title = "Life Expectancy vs Percentage of Expenditure in health care",
+           #caption = "HPI: House Price Index",
+    x=" Percentage_expenditure",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~continent)
+
+```
+### Wanted to check the relationship of percentage expenditure solely based on Africa 
+
+```{r}
+ggplot(life %>% filter(continent == 'Africa') ,aes(x = Total_expenditure, y = Life_expectancy))+
+  geom_point(color=" gray") + #scale_x_log10()+
+  geom_smooth(method="glm",color="dark blue", se=FALSE)+ 
+  #xlim(c(0,50))+
+  labs(title = "Life Expectancy vs Percentage of Expenditure in health care",
+           #caption = "HPI: House Price Index",
+    x=" Percentage_expenditure",y="Life Expectancy")+
+    theme_bw() + facet_wrap(~cut(Year,3))
+
+```
+
+
+# % change of life expectancy and expenditure in health care
+
+
+```{r}
+cpi_00 <- subset(life, life$Year == 2000)#[c('NAME','value')]
+cpi_14 <- subset(life, life$Year == 2014)#[c('NAME','value')]
+
+cpi_combined=data.frame(cpi_00)
+colnames(cpi_combined)[colnames(cpi_combined) == "Life_expectancy"] <- "Life_expectancy_2000"
+colnames(cpi_combined)[colnames(cpi_combined) == "Total_expenditure"] <- "Total_expenditure_2000"
+colnames(cpi_combined)[colnames(cpi_combined) == "Status"] <- "Status_2000"
+
+cpi_combined <- merge(cpi_combined, cpi_14, by = c("Country"))
+colnames(cpi_combined)[colnames(cpi_combined) == "Life_expectancy"] <- "Life_expectancy_2014" 
+colnames(cpi_combined)[colnames(cpi_combined) == "Total_expenditure"] <- "Total_expenditure_2014"
+colnames(cpi_combined)[colnames(cpi_combined) == "Status"] <- "Status_2014"
+
+#2005
+cpi_combined$cpi_life_2005<- round((cpi_combined$Life_expectancy_2014 - cpi_combined$Life_expectancy_2000)*100/cpi_combined$Life_expectancy_2000)
+
+cpi_combined$cpi_expenditure_2005<- round((cpi_combined$Total_expenditure_2014 - cpi_combined$Total_expenditure_2000)*100/cpi_combined$Total_expenditure_2000)
+```
+
+
+
+# years 2000-2014
+```{r}
+ggplot( aes(x = cpi_expenditure_2005, y =cpi_life_2005),data=cpi_combined)+xlim(c(0,100))+geom_point(color=" gray") +geom_smooth(method='glm',se=FALSE)+facet_wrap(~continent.x,labeller = label_both) +theme_bw() + labs(title = "Snapshot %change in expenditure vs %change in expectancy  from 2000-2014",
+    x="Change in Percentage_expenditure",y="Change in Life Expectancy")
+```
+
+
+#### Polio
+
+```{r}
+ggplot( data=life %>% filter(Year < 2014),aes(x = Polio , y =Life_expectancy))+geom_point(color=" gray")+ggtitle('Polio vs Life expectancy faceted on continents')+geom_smooth(method='lm',se=FALSE)+facet_wrap(~continent,labeller = label_both) + theme_bw() 
+```
+
+### Schooling
+
+```{r}
+ggplot( aes(x = Schooling, y =Life_expectancy),data=life)+
+    geom_point(color=" gray")+
+    facet_wrap(~continent,labeller = label_both)+
+  geom_smooth(method='glm',color="dark blue", se=FALSE)+
+  labs(title = "Life Expectancy vs No. of year of education",
+           #caption = "HPI: House Price Index",
+    x=" Years of schooling",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~continent)
+```
+
+
+### Correlation plot
+
+```{r}
+library(GGally)
+ggpairs(life[c("Year", "Polio", "Diphtheria", "Total_expenditure", "Schooling" )])
+```
+
+
+```{r}
+model.lm = lm(Life_expectancy ~Status  + Polio +Diphtheria+ Total_expenditure+Schooling+continent + continent:Total_expenditure + continent:Schooling, data=life)
+summary(model.lm)
+```
+
+```{r}
+AIC(lm(Life_expectancy ~ Status  + Polio +Diphtheria+ Total_expenditure+Schooling+continent + continent:Total_expenditure + continent:Schooling, data=life))
+```
+
+
+```{r}
+model.lm = lm(Life_expectancy ~Status  + Polio +Diphtheria+ Total_expenditure+Schooling+continent, data=life)
+summary(model.lm)
+```
+
+```{r}
+AIC(model.lm)
+```
+
+```{r}
+model.lm = lm(Life_expectancy ~ Polio +Diphtheria+ Total_expenditure+Schooling+continent + continent:Total_expenditure + continent:Schooling, data=life)
+# summary((model.lm))
+library(broom)
+model.lm.aug = augment(model.lm)
+ggplot(model.lm.aug, 
+       aes(x=Total_expenditure, y=.resid)
+       )+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~continent)
+```
+
+```{r}
+model.lm = lm(Life_expectancy ~ Polio +Diphtheria+ Total_expenditure+Schooling+continent + continent:Total_expenditure + continent:Schooling, data=life)
+# summary((model.lm))
+library(broom)
+model.lm.aug = augment(model.lm)
+ggplot(model.lm.aug, 
+       aes(x=Schooling, y=.resid)
+       )+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~continent)
+```
+
+
+
+```{r}
+model.lm = lm(Life_expectancy ~ Polio +Diphtheria+ Total_expenditure+Schooling+continent + continent:Total_expenditure + continent:Schooling, data=life)
+# summary((model.lm))
+library(broom)
+model.lm.aug = augment(model.lm)
+ggplot(model.lm.aug, 
+       aes(x=Polio, y=.resid)
+       )+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~continent)
+```
+
+
+```{r}
+life_00=life[which(life$Year==2000),]
+life_14=life[which(life$Year==2014),]
+```
+
+
+```{r}
+model.lm.00 = lm(Life_expectancy ~ Polio + Total_expenditure+Schooling+continent + continent:Total_expenditure + continent:Schooling, data=life_00)
+# summary((model.lm))
+library(broom)
+model.lm.aug.00 = augment(model.lm.00)
+ggplot(model.lm.aug.00, 
+       aes(x=Polio, y=.resid)
+       )+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~continent)+ylab("Residual Values")+xlab("Polio ")+ggtitle("Polio v/s Residual values for 2000") + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+```
+
+```{r}
+ggplot(model.lm.aug.00, 
+       aes(x=Total_expenditure, y=.resid)
+       )+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~continent)+ylab("Residual Values")+xlab("Total Expenditure ")+ggtitle("Total Expenditure v/s Residual values for 2000") + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+```
+
+```{r}
+ggplot(model.lm.aug.00, 
+       aes(x=Schooling, y=.resid)
+       )+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~continent)+ylab("Residual Values")+xlab("Schooling")+ggtitle("Schooling v/s Residual values for 2000") + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+```
+
+
+```{r}
+summary((model.lm.00))
+```
+
+
+
+```{r}
+model.lm.14 = lm(Life_expectancy ~ Polio +Diphtheria+ Total_expenditure+Schooling+continent + continent:Total_expenditure + continent:Schooling, data=life_14)
+# summary((model.lm))
+library(broom)
+model.lm.aug.14 = augment(model.lm.14)
+ggplot(model.lm.aug.14, 
+       aes(x=Polio, y=.resid)
+       )+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~continent)+ylab("Residual Values")+xlab("Polio ")+ggtitle("Polio v/s Residual values for 20") + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+
+```
+
+
+```{r}
+ggplot(model.lm.aug.14, 
+       aes(x=Total_expenditure, y=.resid)
+       )+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~continent)+ylab("Residual Values")+xlab("Total Expenditure ")+ggtitle("Total Expenditure v/s Residual values for 2014") + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+```
+
+```{r}
+ggplot(model.lm.aug.14, 
+       aes(x=Schooling, y=.resid)
+       )+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~continent)+ylab("Residual Values")+xlab("Schooling")+ggtitle("Schooling v/s Residual values for 2014") + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5))
+```
+
+
+
+
+
+
+```{r}
+life_00.grid=expand.grid(Polio=seq(min(life_00$Polio),max(life_00$Polio),1),Total_expenditure=seq(min(life_00$Total_expenditure),max(life_00$Total_expenditure),0.25),Schooling=seq(min(life_00$Schooling),max(life_00$Schooling),1),continent=c("Asia","Europe","Africa","North America","South America","Oceania"),Status=c("Developed","Developing"))
+
+life_00.model=lm(Life_expectancy ~ Polio +Status+ Total_expenditure+Schooling+continent + continent:Total_expenditure + continent:Schooling, data=life_00)
+
+life_00.pred = predict(life_00.model,
+type = "response", newdata = life_00.grid)
+life_00.pred.df = data.frame(life_00.grid,
+life_00.prob = as.vector(life_00.pred))
+
+
+```
+```{r}
+
+library("gridExtra")
+gp0_legend=ggplot( life_00.pred.df,aes(x = Polio, y = life_00.prob,color=continent,group=continent))+geom_smooth(method='lm',se=FALSE)+theme(axis.text.x = element_text(angle = 50, hjust = .9, vjust = .9))+ylab("Predicted Life Expectancy")+xlab("Polio ")+ggtitle("Polio v/s Predicted Life Expectancy for 2000") + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5),legend.position = "bottom")
+
+gp0=ggplot( life_00.pred.df,aes(x = Polio, y = life_00.prob,color=continent,group=continent))+geom_smooth(method='lm',se=FALSE)+theme(axis.text.x = element_text(angle = 50, hjust = .9, vjust = .9))+ylab("Predicted Life Expectancy")+xlab("Polio ")+ggtitle("Polio v/s Predicted Life Expectancy for 2000") +theme_bw()+ theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5),legend.position = "hidden")
+
+gte0=ggplot( life_00.pred.df,aes(x = Total_expenditure, y = life_00.prob,color=continent,group=continent))+geom_smooth(method='lm',se=FALSE)+theme(axis.text.x = element_text(angle = 50, hjust = .9, vjust = .9))+ylab("Predicted Life Expectancy")+xlab("Total Expenditure ")+ggtitle("Total Expenditur v/s Predicted Life Expectancy for 2000")+theme_bw() + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5),legend.position = "hidden")
+
+gs0=ggplot( life_00.pred.df,aes(x = Schooling, y = life_00.prob,color=continent,group=continent))+geom_smooth(method='lm',se=FALSE)+theme(axis.text.x = element_text(angle = 50, hjust = .9, vjust = .9))+ylab("Predicted Life Expectancy")+xlab("Schooling ")+ggtitle("Schooling v/s Predicted Life Expectancy for 2000")+theme_bw() + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5),legend.position = "hidden")
+```
+
+
+```{r}
+life_14.grid=expand.grid(Polio=seq(min(life_14$Polio),max(life_14$Polio),1),Total_expenditure=seq(min(life_14$Total_expenditure),max(life_14$Total_expenditure),0.25),Schooling=seq(min(life_14$Schooling),max(life_14$Schooling),1),continent=c("Asia","Europe","Africa","North America","South America","Oceania"),Status=c("Developed","Developing"))
+
+life_14.model=lm(Life_expectancy ~ Polio +Status+ Total_expenditure+Schooling+continent + continent:Total_expenditure + continent:Schooling, data=life_14)
+
+life_14.pred = predict(life_14.model,
+type = "response", newdata = life_14.grid)
+life_14.pred.df = data.frame(life_14.grid,
+life_14.prob = as.vector(life_14.pred))
+
+```
+
+```{r}
+gp4=ggplot( life_14.pred.df,aes(x = Polio, y = life_14.prob,color=continent,group=continent))+geom_smooth(method='lm',se=FALSE)+theme(axis.text.x = element_text(angle = 50, hjust = .9, vjust = .9))+ylab("Predicted Life Expectancy")+xlab("Polio ")+ggtitle("Polio v/s Predicted Life Expectancy for 2014") +theme_bw()+ theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5),legend.position = "hidden")
+
+gte4=ggplot( life_14.pred.df,aes(x = Total_expenditure, y = life_14.prob,color=continent,group=continent))+geom_smooth(method='lm',se=FALSE)+theme(axis.text.x = element_text(angle = 50, hjust = .9, vjust = .9))+ylab("Predicted Life Expectancy")+xlab("Total Expenditure ")+ggtitle("Total Expenditure v/s Predicted Life Expectancy for 2014")+theme_bw() + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5),legend.position = "hidden")
+
+gs4=ggplot( life_14.pred.df,aes(x = Schooling, y = life_14.prob,color=continent,group=continent))+geom_smooth(method='lm',se=FALSE)+theme(axis.text.x = element_text(angle = 50, hjust = .9, vjust = .9))+ylab("Predicted Life Expectancy")+xlab("Schooling ")+ggtitle("Schooling v/s Predicted Life Expectancy for 2014")+theme_bw() + theme(plot.title = element_text(size = 10, face = "bold", hjust = 0.5),legend.position = "hidden")
+```
+```{r}
+gte4
+```
+```{r}
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+shared_legend <- extract_legend(gp0_legend)
+```
+
+
+```{r,fig.height=5,fig.width=10}
+
+grid.arrange(arrangeGrob(gp0, gp4, ncol = 2),
+             shared_legend, nrow = 2, heights = c(10, 1))
+```
+```{r,fig.height=5,fig.width=10}
+
+grid.arrange(arrangeGrob(gte0, gte4, ncol = 2),
+             shared_legend, nrow = 2, heights = c(10, 1))
+```
+
+```{r,fig.height=5,fig.width=10}
+
+grid.arrange(arrangeGrob(gs0, gs4, ncol = 2),
+             shared_legend, nrow = 2, heights = c(10, 1))
+```
+
+
+
+
+```{r}
+unique(life_00["continent"])
+```
+
+
+
+
+
+
+
+

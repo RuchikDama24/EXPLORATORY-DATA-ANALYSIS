@@ -1,0 +1,70 @@
+---
+title: "R Notebook"
+output: 
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+
+---
+title: "Mini Project-1"
+author: "Shashank Sumanth Ruchik Aniket"
+date: "28/10/2021"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(ggplot2)
+library(tidycensus)
+library(stringr)
+library(tidyverse)
+library(gridExtra)
+census_api_key("b58a893ab08bf54aa71a88588839c192abdb915a")
+```
+
+## Questions
+
+The researcher’s major research question is: How have house prices in U.S. states changed over the last few decades, and are changes in prices are related to population in some way? This question may be difficult to answer, at least straight away. So she has brainstormed a series of questions he would like you to address, which can be divided into groups:
+
+## Question 1:
+
+1. House prices over time:
+a. How have house prices in the U.S changed since 1975, after adjusting for inflation (i.e. relative to the CPI?) 
+
+### Load the data
+
+```{r , include=FALSE}
+cpi_data=read_xls("State_and_US_SA.xls", range = 'A6:BA546', col_names = TRUE)
+cpi_data1=read_xls("State_and_US_SA.xls", range = 'A6:BA546', col_names = TRUE)
+cpi=read.csv(file = 'cpi.csv')
+```
+
+```{r, include=FALSE}
+col_2019=subset(cpi, cpi$Year == 2019)
+vals=col_2019$Value
+cpi$cpi_2019 <- rep(vals, times = 73)
+#head(cpi)
+```
+
+```{r, include=FALSE}
+# removed data prior to 1974
+cpi=cpi[which(cpi$Year>1974),]
+#head(cpi)
+```
+
+
+```{r, include=FALSE}
+### Splitted the month column and stored it in the Month and Year Columns
+cpi_temp=str_split_fixed(cpi_data$Month, "M", 2)
+cpi_data1$Year=as.numeric(cpi_temp[,1])
+cpi_data1$Month=as.numeric(cpi_temp[,2])
+cpi_data$Year=as.numeric(cpi_temp[,1])
+cpi_data$Month=as.numeric(cpi_temp[,2])
+#head(cpi_data)
+```

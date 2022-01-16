@@ -1,0 +1,85 @@
+---
+title: "In-class 9/14/21"
+author: "S470/670"
+date: "9/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+load("lattice.RData")
+```
+
+```{r}
+library(gapminder)
+gapminder07 = filter(gapminder, year == 2007)
+#View(gapminder07)
+```
+
+```{r}
+library(MASS)
+ggplot(gapminder07, aes(x = gdpPercap, y = lifeExp)) +
+  geom_point() + scale_x_log10() +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_smooth(method = "rlm", method.args = list(psi = psi.bisquare), se = FALSE, color = "orange")
+```
+
+```{r}
+ggplot(gapminder07, aes(x = gdpPercap, y = lifeExp)) +
+  geom_point() + scale_x_log10() +
+  # geom_smooth(method = "loess") +
+  geom_smooth(method = "loess", color = "orange", method.args = list(family = "symmetric"))
+```
+
+Fit the model:
+
+```{r}
+gap.lo = loess(lifeExp ~ log(gdpPercap), data = gapminder07, family = "symmetric")
+library(broom)
+# gap.lo.df = augment(gap.lo)
+# View(gap.lo.df)
+gap.lo.df = data.frame(gapminder07,
+                       .resid = residuals(gap.lo))
+```
+
+Plot the data with continents as colors:
+
+```{r}
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+ggplot(gapminder07, aes(x = gdpPercap, y = lifeExp, color = continent)) +
+  geom_point() + scale_x_log10() +
+  scale_color_manual(values = cbPalette) + 
+  geom_smooth(method = "lm", se = FALSE)
+```
+Fit a model with equal slopes.
+
+```{r}
+gap.lm = lm(lifeExp ~ log10(gdpPercap) + continent, data = gapminder07)
+```
+
+```{r}
+gap.lm.df = data.frame(gapminder07,
+                       .fitted = fitted.values(gap.lm),
+                       .resid = residuals(gap.lm))
+ggplot(gap.lm.df, aes(x = gdpPercap, y = .resid)) +
+  geom_point() + scale_x_log10() + geom_smooth()
+```
+
+```{r}
+ggplot(gap.lm.df, aes(x = .fitted, y = abs(.resid))) +
+  geom_point() + geom_smooth(method = "lm")
+```
+
+```{r}
+ggplot(gap.lm.df, aes(x = gdpPercap, y = .resid)) +
+  geom_point() + scale_x_log10() +
+  facet_wrap(~continent, ncol = 3) +
+  geom_smooth(method = "lm")
+```
+
+
+
+
+
+

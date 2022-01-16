@@ -1,0 +1,221 @@
+---
+title: "R Notebook"
+output: 
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+
+---
+title: "Mini Project-1"
+author: "Shashank Sumanth Ruchik Aniket"
+date: "28/10/2021"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE,message=FALSE)
+library(readxl)
+library(ggplot2)
+library(tidycensus)
+library(stringr)
+library(tidyverse)
+library(gridExtra)
+census_api_key("b58a893ab08bf54aa71a88588839c192abdb915a")
+```
+
+# Problem Statement
+ How have house prices in U.S. states changed over the last few decades, and are changes in prices are related to population in some way?
+ 
+# Introduction
+The aim of this Mini Project is to understand how the Housing prices have changed over time in US from 1975 to 2019. The factors we have mainly studied in this project are prices, population, population density. Following questions have been addressed in the mini project.
+
+## Question 1: House prices over time:
+a. How have house prices in the U.S changed since 1975, after adjusting for inflation (i.e. relative to the CPI?) 
+```{r , include=FALSE}
+cpi_data=read_xls("State_and_US_SA.xls", range = 'A6:BA546', col_names = TRUE)
+cpi_data1=read_xls("State_and_US_SA.xls", range = 'A6:BA546', col_names = TRUE)
+cpi=read.csv(file = 'cpi.csv')
+```
+```{r, include=FALSE}
+col_2019=subset(cpi, cpi$Year == 2019)
+vals=col_2019$Value
+cpi$cpi_2019 <- rep(vals, times = 73)
+#head(cpi)
+```
+```{r, include=FALSE}
+# removed data prior to 1974
+cpi=cpi[which(cpi$Year>1974),]
+#head(cpi)
+```
+```{r, include=FALSE}
+### Splitted the month column and stored it in the Month and Year Columns
+cpi_temp=str_split_fixed(cpi_data$Month, "M", 2)
+cpi_data1$Year=as.numeric(cpi_temp[,1])
+cpi_data1$Month=as.numeric(cpi_temp[,2])
+cpi_data$Year=as.numeric(cpi_temp[,1])
+cpi_data$Month=as.numeric(cpi_temp[,2])
+#head(cpi_data)
+```
+```{r, include=FALSE}
+### Merging cpi_data and cpi dateset
+cpi_data = merge(cpi_data, cpi, by = c("Year"),inplace=TRUE)
+
+### Renaming United States seasonally adjusted to usprice 
+colnames(cpi_data)[colnames(cpi_data) == "United States seasonally adjusted"] = "US"
+
+```
+```{r, include=FALSE}
+cpi_data[,3:53] = (cpi_data$cpi_2019*cpi_data[,3:53]/cpi_data$Value) 
+cpi_data$US = (cpi_data$cpi_2019*cpi_data$US/cpi_data$Value) 
+
+```
+The house prices were fluctuating till 1998 after removing the inflation, it peaked at 1980 and 1990. After 1998, the house prices grew rapidly till 2006 and peaked at just below 200 after that it declined in next five years. We think that this growth in house price can be attributed to the housing bubble which was developed between 2000-2006 and once the bubble got burst the prices fell abruptly.
+
+
+We calculated inflation based on --------
+
+```{r, warning=FALSE,echo=FALSE, fig.align='center', fig.width=4, fig.height=4}
+ggplot(cpi_data,aes(x = Year , y = US))+geom_line()+ geom_smooth()+ labs(title = "Year v/s Change in HPI(Inflation Adjusted)",x=" Year",y="HPI (Inflation Adjusted")  
+```
+b. How have changes in prices varied by state? 
+
+To look at the changes in prices by states, let us group the state by region. We made four major buckets of regions: West, Midwest, Northeast and South. We will look each of the regions to see a pattern in the changes of prices by states.
+```{r, include = FALSE}
+state_codes_df = read.delim(file = "statecodes.txt", header = FALSE, sep = "", dec = ".")
+state_codes=state_codes_df$V2
+state_data=cpi_data[1:54]
+
+### Pivoting the data from wide to long.
+state_data1=state_data %>% 
+ pivot_longer(
+   cols =state_codes,
+   names_to = "variable",
+   values_to = "value",
+   values_drop_na = TRUE
+ )
+
+### Finding the mean of values.
+state_mean=aggregate(value~variable + Year,data=state_data1,mean)
+```
+```{r, include=FALSE}
+west_states = c("WA", "MT", "OR", "ID", "WY", "CA", "NV", "UT", "CO", "AZ", "NM", "HI", "AK")
+midwest_states = c("ND", "MN", "SD", "NE", "IA", "KS", "MO", "WI", "MI", "IL", "IN", "OH")
+northeast_states = c("PA", "NJ", "NY", "CT", "RI", "MA", "VT", "NH", "ME")
+south_states = c("OK", "TX", "AR", "LA", "MS", "AL", "TN", "KY", "GA", "FL", "SC", "NC", "WV", "VA", "DC", "MD", "DE")
+west_data = state_mean[state_mean$variable %in% west_states,]
+midwest_data = state_mean[state_mean$variable %in% midwest_states,]
+northeast_data = state_mean[state_mean$variable %in% northeast_states,]
+south_data = state_mean[state_mean$variable %in% south_states,]
+
+west_mean=aggregate(value~variable+Year,data=west_data,mean)
+midwest_mean=aggregate(value~variable+Year,data=midwest_data,mean)
+northeast_mean=aggregate(value~variable+Year,data=northeast_data,mean)
+south_mean=aggregate(value~variable+Year,data=south_data,mean)
+```
+#### Region: Northeast
+Northeastern states have two major bumps in house prices, one at 1990 and another at 2006. The increase in prices at 1990 is comparatively higher in northeast states than the states in other regions.
+```{r, echo=FALSE, fig.align='center', fig.width=3, fig.height=3}
+northeast_plot <- ggplot(northeast_mean, aes(x=Year, y = value)) + geom_line() + labs(y = "HPI", x = "Year")
+northeast_plot + facet_wrap(~variable, ncol = 6)  + theme_minimal() +theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+#### Region: South
+Most of southern states did not had much affect by the housing bubble which drove the prices of houses rapidly except Florida, District of Columbia, Maryland and Virgina. Even though there is an increase in price at 2006 but in comparison with other region it is not that substantial. The house prices in Southern states remained fairly constant.
+```{r, echo=FALSE, fig.align='center', fig.width=4, fig.height=4}
+south_plot <- ggplot(south_mean, aes(x=Year, y = value)) + geom_line() + labs(y = "HPI", x = "Year")
+south_plot + facet_wrap(~variable, ncol = 6)  + theme_minimal() +theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+#### Region: West
+The house price trend for western states is similar to the overall house price trend of the US.
+
+```{r, echo=FALSE, fig.align='center', fig.width=3, fig.height=3}
+west_plot <- ggplot(west_mean, aes(x=Year, y = value)) + geom_line() + labs(y = "HPI", x = "Year")
+west_plot + facet_wrap(~variable, ncol = 6)  + theme_minimal() +theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+#### Region: Midwest
+Many of midwest states either saw a decline in prices or the prices remained the same when compared from 1980 to 2018. Iowa, Indiana,Kansas, Missori, Ohio are the states which had a decline in prices when compared with 1980-2018. Illinois, Michigan, Nebraska and Wisconsin had a similar house in 1980 and 2018.
+
+```{r, echo=FALSE, fig.align='center', fig.width=3, fig.height=3}
+midwest_plot <- ggplot(midwest_mean, aes(x=Year, y = value)) + geom_line() + labs(y = "HPI", x = "Year")
+midwest_plot + facet_wrap(~variable, ncol = 6)  + theme_minimal() +theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+c. Which states have seen the biggest increases in real house prices, and which have seen the biggest decreases?
+
+District of Columbia, California, Hawaii and Washington are the states with biggest increase in house prices compared from 1975.
+
+```{r, include=FALSE}
+dc_df = subset(state_mean, state_mean$variable == "DC")
+cal_df = subset(state_mean, state_mean$variable == "CA")
+hi_df = subset(state_mean, state_mean$variable == "HI")
+wa_df = subset(state_mean, state_mean$variable == "WA")
+
+```
+
+```{r, echo=FALSE, fig.align='center', fig.width=3, fig.height=3}
+g1 = ggplot(dc_df, aes(x = Year, y = value)) + geom_line() + geom_smooth(method = "lm", se = F)+ ggtitle("DISTRICT OF COLUMBIA") + labs(y = "HPI", x = "Year") +ylim(c(25,350))
+g2 = ggplot(cal_df, aes(x = Year, y = value)) + geom_line() + geom_smooth(method = "lm", se = F)+ ggtitle("CALIFORNIA") + labs(y = "HPI", x = "Year") +ylim(c(25,350))
+g3 = ggplot(hi_df, aes(x = Year, y = value)) + geom_line() + geom_smooth(method = "lm", se = F)+ ggtitle("HAWAII") + labs(y = "HPI", x = "Year") +ylim(c(25,350))
+g4 = ggplot(wa_df, aes(x = Year, y = value)) + geom_line() + geom_smooth(method = "lm", se = F)+ ggtitle("WASHINGTON")+ labs(y = "HPI", x = "Year") +ylim(c(25,350))
+
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+Arkansas, Ohio, Oklohoma and West Virgina are the states with the biggest decrease in house prices compared from 1975
+
+```{r, include= FALSE}
+ar_df = subset(state_mean, state_mean$variable == "AR")
+oh_df = subset(state_mean, state_mean$variable == "OH")
+ok_df = subset(state_mean, state_mean$variable == "OK")
+wv_df = subset(state_mean, state_mean$variable == "WV")
+```
+
+```{r, echo=FALSE, fig.align='center', fig.width=3, fig.height=3}
+g1 = ggplot(ar_df, aes(x = Year, y = value)) + geom_line() + geom_smooth(method = "lm", se = F)+ ggtitle("ARKANSAS") + labs(y = "HPI", x = "Year") +ylim(c(100,225)) 
+g2 = ggplot(oh_df, aes(x = Year, y = value)) + geom_line() + geom_smooth(method = "lm", se = F)+ ggtitle("OHIO") + labs(y = "HPI", x = "Year") +ylim(c(100,225))
+g3 = ggplot(ok_df, aes(x = Year, y = value)) + geom_line() + geom_smooth(method = "lm", se = F)+ ggtitle("OKLOHOMA") + labs(y = "HPI", x = "Year") +ylim(c(100,225))
+g4 = ggplot(wv_df, aes(x = Year, y = value)) + geom_line() + geom_smooth(method = "lm", se = F)+ ggtitle("WEST VIRGINIA") + labs(y = "HPI", x = "Year") +ylim(c(100,225))
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+d. Have changes in prices within each state mostly followed the same basic pattern, and are there outliers to that pattern? 
+
+Majority  of the states follow the same basic pattern where they see rise in house prices in 1980, 1990 and 2006 and decline after that. But there few states which do not follow these pattern like West Virgina, North Dacota,District of Columbia, Washington are the few ones
+
+
+e. Do the typical patterns vary between the four regions (Northeast, Midwest, South, and West)?
+
+```{r, include = FALSE}
+west_mean1=aggregate(value~Year,data=west_data,mean)
+midwest_mean1=aggregate(value~Year,data=midwest_data,mean)
+northeast_mean1=aggregate(value~Year,data=northeast_data,mean)
+south_mean1=aggregate(value~Year,data=south_data,mean)
+#south_mean
+```
+
+
+```{r, echo=FALSE, fig.align='center', fig.width=4, fig.height=4}
+g1 = ggplot(west_mean1, aes(x = Year, y = value)) + geom_line() + ggtitle("WEST") + labs(y = "HPI", x = "Year") +ylim(c(100,225))
+g2 = ggplot(midwest_mean1, aes(x = Year, y = value)) + geom_line() + ggtitle("MIDWEST") + labs(y = "HPI", x = "Year") +ylim(c(100,225))
+g3 = ggplot(northeast_mean1, aes(x = Year, y = value)) + geom_line() + ggtitle("NORTHEAST")+ labs(y = "HPI", x = "Year") +ylim(c(100,225))
+g4 = ggplot(south_mean1, aes(x = Year, y = value)) + geom_line() + ggtitle("SOUTH")+ labs(y = "HPI", x = "Year") +ylim(c(100,225))
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+The regions also pretty much follow the same trend as the overall house prices.
+Northeast region has a gradual rise and so does the West region. The period 1980-1990 was a consistently
+low patch for all except the Northeast region. 
+
+
+
+
+
+
+
+
+

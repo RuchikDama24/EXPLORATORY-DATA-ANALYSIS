@@ -1,0 +1,139 @@
+---
+title: "s670-HW7"
+author: "Ruchik Rohit Dama"
+date: "11/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r, include=FALSE}
+library(tidyverse)
+library(widgetframe)
+library(ggplot2)
+library(maps)
+library(gridExtra)
+library(ggthemes)
+library(socviz)
+library(mapproj)
+library(dplyr)
+```
+```{r}
+data = read.delim(file = "../ASSIGNMENT 7/eday-covid.txt", header = TRUE, sep = "", dec = ".")
+
+data_nc=data.frame(data)
+```
+
+Downloading the coordinates data for the US counties.
+
+```{r}
+us_counties=map_data("county")
+```
+
+
+Omiting the NA values.
+
+```{r}
+#data=na.omit(data)
+data_cases=data %>% drop_na(cases)
+data_deaths=data %>% drop_na(deaths)
+```
+
+
+
+
+converting all the county to lowercase, and joining the covid data with the county coordinates data.
+
+```{r}
+data_cases$subregion=tolower(data_cases$county)
+us_county_data_cases=left_join(us_counties,data_cases,by="subregion")
+data_deaths$subregion=tolower(data_deaths$county)
+us_county_data_deaths=left_join(us_counties,data_deaths,by="subregion")
+#data$subregion
+```
+
+
+```{r}
+#us_county_data[which(us_county_data$county=="New York City"),]
+```
+
+
+#### QUESTION 1:-a map of some continuous variable X, by U.S. county (making the colors look nice)
+
+```{r}
+quantile(us_county_data_cases$cases, probs = c(.25, .5, .75,.80,1.),na.rm=TRUE)
+```
+
+```{r}
+ggplot(us_county_data_cases,aes(x=long,y=lat,group=group,fill=cases))+geom_polygon(color="black",size=0.001)+coord_map(projection="lambert",lat0=30,lat1=40)+theme_map()+
+  scale_fill_gradient2(low="yellow",mid="Orange",high="Red",limit=c(0,2400), na.value="red")+ggtitle('US MAP FOR COVID CASES', subtitle = "BASED ON COUNTY")+theme(
+  plot.title = element_text(hjust = 0.5, size = 15, face = "bold"),
+  plot.subtitle = element_text(hjust = 0.5,size=10)
+)
+
+
+```
+
+
+
+##### The above map shows the covid cases across the all the counties in US.  There are some counties with very high values of covid cases, so to balance the graph, I have set the limit to 2400(80 percentile) and all the counties with values above 2400 covid cases have the same color as 2400 covid cases.
+
+#### QUESTION 2:-a map of some continuous variable Y, by U.S. county (making the colors look nice);
+
+```{r}
+quantile(us_county_data_deaths$deaths, probs = c(.25, .5, .75,.8,1.),na.rm=TRUE)
+```
+
+
+```{r}
+ggplot(us_county_data_deaths,aes(x=long,y=lat,group=group,fill=deaths))+geom_polygon(color="black",size=0.002)+coord_map(projection="lambert",lat0=30,lat1=40)+theme_map()+
+  scale_fill_gradient2(low="Yellow",mid="Orange",high="Red", limits=c(0, 50), na.value="red")+ggtitle('US MAP FOR COVID DEATHS', subtitle = "BASED ON COUNTY")+theme(
+  plot.title = element_text(hjust = 0.5, size = 15, face = "bold"),
+  plot.subtitle = element_text(hjust = 0.5,size=10)
+)
+```
+
+#####The above map shows the covid deaths across the all the counties in US.  There are some counties with very high values of covid deaths, so to balance the graph, I have set the limit to 50(80 percentile) and all the counties with values above 50 covid deaths  have the same color as 50 covid deaths.
+
+#### QUESTION 3:- scatterplot of X and Y by county.
+
+```{r}
+data_c=na.omit(data_nc)
+cor(data_c$deaths,data_c$cases)
+```
+
+
+```{r,fig.height=8,fig.width=10}
+ggplot(data_nc, aes(cases, deaths, label = county)) +
+  geom_text(aes(label=ifelse(cases>100000,as.character(county),''))) +
+  geom_point() +
+  xlim(0,400000) +
+  xlab('Covid Cases') +
+  ylab('Covid Deaths') +
+  ggtitle('Scatter plot of Covid Cases vs Covid Deaths', subtitle = "based on county")
+```
+
+##### The above graph shows scatterplot between covid cases and covid deaths in US. I have labeled the points, with covid cases more than 100000.
+
+
+#### Give at least two possible explanations for the relationship between Xand Y(e.g. Xcauses Y, Y causes X, Xand Yare both caused by Z, X and Y and Zare all caused by Z2.)
+
+EXPLANATION NO 1:-  CASES(X) CAUSES DEATHS(Y).
+From the scatterplot, we can see that as the number of covid cases increase there is increase in deaths.Even from the left cluster, we can say that there is a positive trend between cases and deaths.The scatter plot and correlation between number of cases and death indicate that both are highly correlated, with a correlation coefficient of 0.9.So, we can safely say that increase in no. of cases can cause increase in no. of deaths.
+
+EXPLANATION NO 2:- CASES(X) CAUSES DEATHS(Y) ARE CORRELATED TO POPULATION DENSITY(Z).
+We can see there are some counties like Dallas, Los Angeles, Miami, New York City,Cook etc, that have high number of covid cases. One reason for that would be that they are highly populated counties. So, the population density plays an important role.So, we can say that more densely populated counties that have metropolitian cities have high number of cases and deaths. We can see that new york is an outlier because it has more covid deaths compared to other counties. So, we can say that both covid cases and covid deaths are dependent on population density
+
+
+
+
+
+
+
+
+

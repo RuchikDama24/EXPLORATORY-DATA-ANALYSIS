@@ -1,0 +1,65 @@
+---
+title: "In-class 8/31/21"
+author: "S470/670"
+date: "8/31/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lattice)
+```
+
+## NYCS tenor heights
+
+```{r}
+#View(singer)
+```
+
+Select the tenors:
+
+```{r}
+tenors = filter(singer, voice.part %in% c("Tenor 1", "Tenor 2"))
+```
+
+```{r}
+summary(tenors)
+nrow(tenors)
+```
+
+Draw a histogram:
+
+```{r}
+ggplot(tenors, aes(x = height)) +
+  geom_histogram(breaks = seq(63.5, 76.5, 1)) +
+  xlab("Height (inches)") +
+  ylab("Number of tenors") +
+  ggtitle("NY Choral Society tenor heights") +
+  labs(subtitle = "Heights of 42 tenors",
+    caption = "Data from Chambers et al. (1983)")
+  # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+Draw a normal quantile-quantile plot for all singers:
+
+```{r}
+ggplot(singer, aes(sample = height + runif(235, -0.5, 0.5))) + stat_qq()
+```
+
+Draw a uniform quantile-quantile for all singers:
+
+```{r}
+ggplot(singer, aes(sample = height)) + stat_qq(distribution = qunif)
+```
+
+
+
+
+
+
+
+
+
+
+
+

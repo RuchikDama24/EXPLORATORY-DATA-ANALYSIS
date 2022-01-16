@@ -1,0 +1,117 @@
+---
+title: "s670-HW3"
+author: "Ruchik Rohit Dama"
+date: "9/22/2021"
+output: html_document
+---
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(NHANES)
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(gam)
+library(broom)
+```
+
+
+#### Extracting the data from NHANES and omitting all NA values from the data.
+
+```{r}
+nhanes.data=subset(NHANES, select = c("BPSysAve","Age","Weight","Height","Gender"))
+nhanes.data=na.omit(nhanes.data)
+nhanes.data
+nhanes.male=filter(nhanes.data, Gender == 'male')
+nhanes.female=filter(nhanes.data, Gender == 'female')
+
+```
+
+#### Plotting Age v/s Average Systolic Blood Pressure
+
+```{r}
+
+ggplot(nhanes.data,aes(x = Age , y = BPSysAve))+geom_point()+labs(title = "Relation Between Age and Average Systolic Blood Pressure",x="Age",y="Average Systolic Blood Pressure")+ stat_smooth(method='gam', se = FALSE)+ stat_smooth(method='lm', se = FALSE,color='orange')+facet_grid(Gender~.)
+
+
+
+```
+```{r}
+print("Slope of Age v/s Avg Systolic Blood Pressure for Female")
+coef(lm(BPSysAve~Age,data=nhanes.female))[2]
+print("Slope of Age v/s Avg Systolic Blood Pressure for male")
+coef(lm(BPSysAve~Age,data=nhanes.male))[2]
+```
+ In the graph, the orange line represents lm whereas blue line represents gam.
+ From the above graph,  we can see the systolic blood pressure is increasing as the Age increases. We can see that the systolic blood pressure of female has more increase in slope than the male.I am using both linear modeling and generalized acyclic modeling. We can see the regression lines are nearly overlapping each other, So there is not much of difference between lm and gam.So, I chose lm, to not increase the complexity of the model. I am using lm to calculate the slope of the graphs. 
+
+
+```{r}
+nhanes.data.lm=lm(BPSysAve~Age,data=nhanes.data)
+nhanes.data$age_residual=augment(nhanes.data.lm)$.resid
+ggplot(nhanes.data,aes(x = Age, y = age_residual))+geom_point()+labs(title = "Residual Plot for Age",x="Age",y="Residual")+facet_grid(Gender~.)+geom_abline(slope=0)
+```
+From the graphs, we can see that there is no visible trend in residual plots. The data points are randomly spread out near the horizontal line for both male and female . So, we can say that the residual plot is reasonable.
+
+
+
+#### Plotting Height v/s Average Systolic Blood Pressure
+
+```{r}
+ggplot(nhanes.data,aes(x = Height , y = BPSysAve))+geom_point()+labs(title = "Relation Between Height and Average Systolic Blood Pressure",x=" Height",y="Average Systolic Blood Pressure")+ stat_smooth(method='gam', se = FALSE) + stat_smooth(method='lm', se = FALSE,color='orange')+facet_grid(Gender~.)
+
+```
+
+```{r}
+print("Slope of Height v/s Avg Systolic Blood Pressure for female")
+coef(gam(BPSysAve~Height,data=nhanes.female))[2]
+print("Slope of height v/s Avg Systolic Blood Pressure for male")
+coef(gam(BPSysAve~Height,data=nhanes.male))[2]
+```
+In the graph, the orange line represents lm whereas blue line represents gam.
+From the above graphs,  we can see that gam fits the data much better than lm. We can see that the gam's regression line increases till the height reaches between 150-160 and then it stays constant. We can see that  that is there is increasing positive trend for male and no visible trend for female.So, we can say that height is a better indicator for male's Systolic blood pressure than female's systolic blood pressure.
+
+
+
+```{r}
+nhanes.data.gam=gam(BPSysAve~Height,data=nhanes.data)
+nhanes.data$height_residual=augment(nhanes.data.gam)$.resid
+ggplot(nhanes.data,aes(x = Height, y = height_residual))+geom_point()+labs(title = "Residual Plot for Height",x=" Height",y="Residual")+facet_grid(Gender~.)+geom_abline(slope=0)
+```
+From the graphs, we can see that The data points in graph of male is more spread out then female. One main reason for that is that range of height in male is larger than range of height in female. The data points are evenly spread out near the horizontal line. we can say that there is no visible trend in residual plots.So, we can say that the residual plot is reasonable.
+
+
+#### Plotting Weight v/s Average Systolic Blood Pressure
+
+```{r}
+ggplot(nhanes.data,aes(x = Weight , y = BPSysAve))+geom_point()+labs(title = "Relation Between Weight and Average Systolic Blood Pressure",x=" Weight",y="Average Systolic Blood Pressure")+ stat_smooth(method='gam', se = FALSE)+ stat_smooth(method='lm', se = FALSE,color='orange')+facet_grid(Gender~.)
+
+```
+
+
+```{r}
+print("Slope of Weight v/s Avg Systolic Blood Pressure for female")
+coef(lm(BPSysAve~Weight,data=nhanes.female))
+print("Slope of Weight v/s Avg Systolic Blood Pressure for male")
+coef(lm(BPSysAve~Weight,data=nhanes.male))
+```
+
+In the graph, the orange line represents lm whereas blue line represents gam.
+From the above graphs,  we can see that gam fits the data much better than lm. We can see that the gam's regression line increases till the weight reaches between 60-80 and then it stays constant. There isn't much of a difference between the slopes of male's graph and female's graph.
+
+```{r}
+nhanes.data.gam=gam(BPSysAve~Weight,data=nhanes.data)
+nhanes.data$weight_residual=augment(nhanes.data.gam)$.resid
+ggplot(nhanes.data,aes(x = Weight, y = weight_residual))+geom_point()+labs(title = "Residual Plot for weight",x=" Weight",y="Average Systolic Blood Pressure")+facet_grid(Gender~.)+geom_abline(slope=0)
+```
+
+From the graphs, we can see that there is no visible trend in residual plots. The data points are randomly spread out near the horizontal line for both male and female . So, we can say that the residual plot is reasonable.
+
+
+
+
+
+

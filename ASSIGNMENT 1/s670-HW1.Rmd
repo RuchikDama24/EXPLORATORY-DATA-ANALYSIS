@@ -1,0 +1,104 @@
+---
+title: "EDA-S670 ASSIGNMENT 1"
+author: "Ruchik Rohit Dama"
+date: "9/2/2021"
+output: html_document
+---
+
+
+
+
+#### NOTE: Discussed with Shashank Kumar and Sumanth Gopalkrishna
+
+
+
+## Importing Libraries and Reading the Excel File
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lattice)
+library(readxl)
+```
+```{r}
+driving_data =  read_excel("DrivingdataAll.xls")
+
+```
+
+## Subsetting the dataset 
+```{r}
+driving_data=subset(driving_data, select = c(1,2,3,4))
+driving_data
+```
+# Creating the Response Column.
+```{r}
+
+driving_data$response=(driving_data$`Odom Reading 1 (Update)`-driving_data$`Odom Reading 1 (Previous)`)
+driving_data
+
+```
+
+
+
+
+## Including Plots
+
+
+```{r}
+library(ggplot2)
+ggplot(data=driving_data, aes(x=response)) +geom_histogram(,fill="#8A2BE2")+
+  xlab("Response Column") +
+  ylab("Response Count") +
+  ggtitle("Histogram For Response Column")
+```
+
+#### The above graph represents the histogram for Response Column. From the graph, we can see that the response column has Uniform Data.
+
+```{r}
+ggplot(data=driving_data, aes(x=response,fill =`OMR Version`)) +geom_histogram(alpha=0.8,position="identity")+
+  xlab("Response Column") +
+  ylab("Response Count") +
+  ggtitle("Histogram For Response Column")
+```
+
+#### From the above graph I can see that the sign bottom has more count than the sign top when response=20,000 , and sign top has more count than sign bottom after response=20,000. 
+
+
+
+#### So, I kept the threshold as 20,000 and skimmed the data with responses < 20,000. After further Analysis, the data is left skewwed with respect to the data points of ('Odom Reading 1 (Previous)'.So, I skimmed the 'Odom Reading 1 (Previous)' data with values greater than 10,000.
+
+```{r}
+dd_gt_20000=subset(driving_data,driving_data$response>20000)
+dd_gt_20000_lt_10000=subset(dd_gt_20000,dd_gt_20000$`Odom Reading 1 (Previous)`<10000)
+ggplot(data=dd_gt_20000_lt_10000, aes(x=dd_gt_20000_lt_10000$`Odom Reading 1 (Previous)`,fill =`OMR Version`)) +geom_histogram(alpha=0.8,position="identity")+
+xlim(c(0,10000))+
+  ylim(c(0,150))+
+  xlab("('Odom Reading 1 (Previous)") +
+  ggtitle("Histogram For Odom Reading 1 (Previous)" )
+
+
+```
+
+```{r}
+ggplot(data=dd_gt_20000_lt_10000, aes(x=dd_gt_20000_lt_10000$`Odom Reading 1 (Update)`,fill =`OMR Version`)) +geom_histogram(alpha=0.8,position="identity")+
+  xlim(c(20000,50000))+
+  ylim(c(0,150))+
+  xlab("('Odom Reading 1 (Update)") +
+  ggtitle("Histogram For Odom Reading 1 (Update)" )
+```
+
+#### The above plots represents the graph histogram for  'Odom Reading 1 (Previous)', 'Odom Reading 1 (Update)' and "Response" .  From the above graph, I can see that the data is left skewwed for  'Odom Reading 1 (Previous)'. This means that actual sign top value are less, whereas the reported sign top values are much greater.This results to a larger values of Response, this seems a bit skeptical. The Odom Reading 1 (Update)  shows that the actual odometer reading for sign top is much larger than sign bottom.
+
+#### The Response Plot is uniform. This means that the difference between self reported and actual values is constant, for both "sign top" and "sign bottom", this means that if the customer would signs at the top or bottom,they are telling the truth. This negates the hypothesis. The hypothesis was if the customer signs at the top, they are mostly telling the truth.
+ 
+
+```{r}
+ggplot(driving_data, aes(sample = response))+
+  stat_qq(distribution = qunif)+
+  scale_color_manual(values = "#8A2BE2") +
+  labs(y = "Response Column", x = "Theoritical",title = "QQ plot for Response variable")
+```
+
+
+#### From the QQ plot, I can definitely say that the data is uniformly distributed.The data in the actual world is hardly normally distributed, it is either left skewwed or right skewwed. In the Paper, it is said that there was a t-test performed and the result was a tiny p-value, but we cannot perform the t-test on uniform distribution, it should be a normally distributed data. So, the hypothesis is not true.
+
+

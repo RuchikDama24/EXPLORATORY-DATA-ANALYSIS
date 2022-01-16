@@ -1,0 +1,130 @@
+---
+title: "s670-HW6"
+author: "Ruchik Rohit Dama"
+date: "12/2/2021"
+output: html_document
+---
+
+#### DISCUSSED WITH SUMANTH, ANIKET AND SHASHANK.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library('tidyverse')
+library('MASS')
+library(broom)
+```
+
+```{r}
+min_data <- read.table("minnesota.barley.yield.txt",sep =" ", header = TRUE, dec =".")
+```
+
+```{r}
+colnames(min_data)
+```
+
+
+
+```{r}
+min_data$year=as.factor(min_data$year)
+min_data$site=as.factor(min_data$site)
+min_data$yield=as.numeric(min_data$yield)
+```
+
+#### QUESTION 1:- Draw an appropriate faceted graph showing how barley yield varied by year at each location, using color as necessary. (Note: Lines might be better than dots here.) When looking at successive years, was it more common for the yields to move in the same direction at all locations, or was it more common for the yields to increase at some locations and decrease at others?
+
+```{r,fig.width=10,fig.height=6}
+ggplot( aes(x = year, y = yield,group=site,color=gen),data=min_data)+geom_point()+facet_wrap(~site)+ggtitle('Yield vs Year faceted on location')+geom_smooth(method=loess,se=FALSE)+xlab('Year')+ylab('Yield')+theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+
+#### All the locations follow similar pattern, where the yield decreases then increases in the year 1931-32 with the exception of st. paul and waseca, where we see decrease in the yield for 1931-32. St.paul and waseca had decreasing trend till 1933 and then there yield increased for the next 3 years. At the same time crookston and duluth followed a decreasing trend for the years 1933 to 1936.So, from the data we can see that every location interacts differently with years, so there is a interaction between year and location.The graphs are colored with different types of barley but they did not have much of significance. 
+
+
+
+#### QUESTION 2:-Fit a model with yield as the response and gen (variety), year, and site as explanatory variables, with the goal of determining whether Morris 1931-1932 is an anomaly. Justify why you chose this model and not some other one.
+
+```{r}
+min_data$years = as.factor(min_data$year)
+min_data$sites = as.factor(min_data$site)
+min_data.lm=lm(yield~gen+years+sites+years:sites,data=min_data)
+```
+
+```{r}
+mdata=min_data
+mdata.lm=lm(yield~gen+years+site,data=mdata)
+mdata$resid=residuals(mdata.lm)
+ggplot(mdata,aes(x=year,y=resid,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Resid')+ggtitle('Year vs Residuals faceted on location')+theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+```{r}
+library(broom)
+mdata=min_data
+mdata.lm=lm(yield~gen+years+site+years*site,data=mdata)
+mdata$resid=residuals(mdata.lm)
+ggplot(mdata,aes(x=year,y=resid,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Resid')+ggtitle('Year vs Residuals  faceted on location and with interaction between site(location) and years') +theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+
+
+```{r}
+barley.effects=dummy.coef(min_data.lm) #gen+years+site+years:site
+barley.effects
+```
+
+
+```{r}
+year.site.main=outer(barley.effects$years,barley.effects$sites,'+')
+year.site.main
+```
+
+```{r}
+year.site.inter=barley.effects$"years:sites"
+year.site.inter
+```
+
+```{r}
+year.site.effect=year.site.main+year.site.inter
+year.site.effect  
+```
+
+```{r}
+years=rep(rownames(year.site.main),6)
+sites=rep(colnames(year.site.main),each=10)
+year.site.df=data.frame(year=years,site=sites,effect=as.vector(year.site.effect ))
+#View(year.site.df)
+```
+
+
+```{r}
+ggplot(year.site.df,aes(x=effect,y=site))+geom_point()+facet_wrap(~year)+xlab('Effects')+ylab('Sites')+ggtitle('location vs Effect faceted on year')
+```
+
+#### According to the Plot in question 1, there is an interaction between the site and the year which has to be taken into account. Based on this, we fitted a lm model taking into account the interaction between site and year.  So,I chose the LM model with the interaction between site and year.
+I have plotted 2 residual plots one without interaction between location and year and one with interaction between location and year. The residual plots without interaction do not follow any particular pattern and are scattered around the zero line. The residual plot with interaction show a promising line that is overlapped with zero line.  
+We can see from the last plot that there are no outliers in the graph that are deviating from the trend.
+
+
+
+#### QuESTION 3:- Draw plots of the fit and/or residuals with the goal of determining whether Morris 1931-1932 is a mistake, or whether it can be explained as natural variation. As best as you can tell, was there a mistake?
+
+
+```{r}
+
+mdata=min_data
+mdata.lm=lm(yield~gen+years+site+years:site,data=mdata)
+
+mdata$preds=fitted.values(mdata.lm)
+mdata$resid=residuals(mdata.lm)
+ggplot(mdata,aes(x=year,y=preds,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Fitted')+ggtitle('Year vs Fitted Values faceted on location') +theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+
+```
+
+```{r}
+ggplot(mdata,aes(x=year,y=resid,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Resid')+ggtitle('Year vs Residuals faceted on location') +theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+
+
+#### By looking at the residuals we can see that there is no particular pattern being followed and they seem to be randomly scatters around the zero line, by which we can say that it is a good model to judge. As we can see from the fitted and residuals model plotted above as well, the 1931-1932 data of Morris may not be a mistake. As you can see from the fitted graph, the yield increased between 1930 and 1935, and the fitted values of 1932 follow this trend as well, which indicates that the adjusted values are not wrong.

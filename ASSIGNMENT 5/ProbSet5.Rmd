@@ -1,0 +1,167 @@
+---
+title: "ProbSet5"
+author: "Himani Anil Deshpande"
+date: "10/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(MASS)
+library(arm)
+library(broom)
+library(grid)
+library(png)
+library(jpeg)
+library(GGally)
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+```
+# Loading Data
+
+```{r}
+nba.data = read.table("curry2015-16.txt", header= 1)
+
+
+nba.data = nba.data[,c('EVENT_TYPE','SHOT_MADE_FLAG','SHOT_DISTANCE','LOC_X','LOC_Y')]
+view(nba.data)
+```
+## Plot the data to show the location of Curry’s shots using color to distinguish between made
+and missed shots, similarly to the picture below but more colorblind-friendly. (You don’t
+have to include the picture of the court unless you want to show off.) NB: It should use
+coord fixed() since the units are the same for both axes.
+
+```{r}
+
+#https://content.sportslogos.net/logos/6/235/full/141_golden_state-warriors-stadium-2012.png
+
+#background_img = "golden_state-warriors-stadium-2012.png"
+
+#court_background =  rasterGrob(readPNG(background_img), interpolate = TRUE, width=unit(1, "npc"), height=unit(1, "npc"))
+
+ggplot(nba.data, aes(x = LOC_X, y = LOC_Y, color = EVENT_TYPE)) +
+  #annotation_custom(court_background, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf) +
+  geom_point() + 
+  coord_fixed(ratio = 1) #ratio = 1 means units are the same for both axes.
+
+
+
+#background_img = "basketball-court-top-view-vector-illustration-on-black-background-1.jpeg"
+
+
+
+#court_background =  rasterGrob(readJPEG(background_img), interpolate = TRUE, width=unit(1, "npc"), height=unit(1, "npc"))
+
+ggplot(nba.data, aes(x = LOC_X, y = LOC_Y, color = EVENT_TYPE)) +
+  #annotation_custom(court_background, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf) +
+  geom_point() + 
+  coord_fixed(ratio = 1) #ratio = 1 means units are the same for both axes.
+
+
+```
+## Fit a logistic regression to predict whether the shot is made, using the single predictor
+SHOT DISTANCE. Draw an appropriate ggplot of the fitted curve and write an equation for
+the fit
+```{r}
+ggpairs(nba.data) #Correlation between SHOT_DISTANCE and LOC_Y is high
+#cor(nba.data$SHOT_DISTANCE, nba.data$EVENT_TYPE)
+# cor( nba.data$SHOT_MADE_FLAG, nba.data$SHOT_DISTANCE)
+# cor(  nba.data$SHOT_DISTANCE, nba.data$SHOT_MADE_FLAG)
+
+nba.model.glm = glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE, data = nba.data, family = "binomial")
+nba.model.grid = expand.grid(SHOT_DISTANCE = seq(0,90, 5))
+
+nba.model.pred = predict(nba.model.glm, newdata = nba.model.grid, type = "response")
+  nba.model.grid = data.frame(nba.model.grid, prob = as.vector(nba.model.pred))
+
+ggplot(nba.model.grid, aes(x = SHOT_DISTANCE, y = prob))+geom_line()
+
+
+
+# 
+# 
+# model1.grid = data.frame(model.grid, prob = as.vector(model1.pred))
+# 
+# ggplot(model1.grid, aes(x = , y = prob, group = dist, color = dist))+geom_line()
+#   
+# 
+# ggplot(model1.grid, aes(x = arsenic, y = prob, group = dist, color = dist))+geom_line() +
+#   scale_x_log10()
+# 
+#   
+```
+
+```{r}
+nba.model.grid = expand.grid(SHOT_DISTANCE = seq(0,90, 5))
+head(nba.model.grid)
+```
+
+
+```{r}
+load("lattice.RData")
+summary(iris)
+ggpairs(iris)
+```
+# Plot the residuals in a way that shows where the logistic regression doesn’t fit the data well.
+Describe in some detail how the model is inaccurate.
+```{r}
+nba.model.glm.df = data.frame(nba.data, .resid = residuals(nba.model.glm) )
+
+ggplot(nba.model.glm.df, aes(x = .resid, y = SHOT_MADE_FLAG, color = EVENT_TYPE))+
+         geom_point()
+```
+#Fit a better model. You could try a different functional form or a model with more predictors
+(as long as you use the predictors sensibly.) Your model doesn’t have to be perfect, just
+better. Draw a graph that shows how your model differs from the simple logistic regression,
+and convince us that your model is better.
+```{r}
+# nba.model.glm2 = glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE +s(LOC_Y), data = nba.data, family = binomial)
+# nba.model.grid2 = expand.grid(SHOT_DISTANCE = seq(0,90, 5))
+
+
+AIC(glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE, data = nba.data, family = "binomial"))
+
+AIC(glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE +LOC_Y, data = nba.data, family = "binomial"))
+
+AIC(glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE +LOC_Y + LOC_X, data = nba.data, family = "binomial"))
+
+
+# AIC(glm(SHOT_MADE_FLAG ~ log10(SHOT_DISTANCE), data = nba.data, family = "binomial"))
+# 
+# AIC(glm(SHOT_MADE_FLAG ~ log10(SHOT_DISTANCE) +LOC_Y, data = nba.data, family = "binomial"))
+# 
+# AIC(glm(SHOT_MADE_FLAG ~ log10(SHOT_DISTANCE) +LOC_Y + LOC_X, data = nba.data, family = "binomial"))
+
+
+
+AIC(glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE* LOC_Y , data = nba.data, family = "binomial"))
+AIC(glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE* LOC_Y *LOC_X, data = nba.data, family = "binomial"))
+
+AIC(glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE *LOC_X+LOC_Y, data = nba.data, family = "binomial"))
+
+
+AIC(glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE+ LOC_X:LOC_Y, data = nba.data, family = "binomial"))
+
+AIC(glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE+ LOC_Y:LOC_X, data = nba.data, family = "binomial"))# better
+AIC(glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE* LOC_Y :LOC_X, data = nba.data, family = "binomial"))
+```
+```{r}
+modelX = glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE+ LOC_Y:LOC_X , family = "binomial", data = nba.data)
+modelX
+
+```
+
+```{r}
+modelX.grid = expand.grid(SHOT_DISTANCE = seq(0,90, 5), LOC_X = -300:300, LOC_Y = -100:800)
+
+modelX.grid$prob =as.vector(predict(modelX, newdata = modelX.grid, type ="response"))
+ggplot(modelX.grid, aes(x = SHOT_DISTANCE, y = prob ))+ 
+  geom_line()
+
+```
+
+
+
+
+
+

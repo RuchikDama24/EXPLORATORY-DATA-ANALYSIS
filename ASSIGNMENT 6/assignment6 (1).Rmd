@@ -1,0 +1,148 @@
+---
+title: "Assignment6"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+data <- read.table("minnesota.barley.yield.txt",sep =" ", header = TRUE, dec =".")
+```
+
+```{r}
+library(ggplot2)
+library('tidyverse')
+library('MASS')
+```
+
+```{r}
+colnames(data)
+```
+
+```{r}
+data$year=as.factor(data$year)
+data$site=as.factor(data$site)
+data$yield=as.numeric(data$yield)
+```
+
+```{r,fig.width=10,fig.height=6}
+ggplot( aes(x = year, y = yield,group=site),data=data)+geom_point()+facet_wrap(~site)+ggtitle('Yield vs year based on location')+geom_smooth(method=loess,se=FALSE)+xlab('Year')+ylab('Yield')
+```
+
+
+#### All the locations follow similar pattern, where the yield decreases then increases in the year 1931-32 with the exception of st. paul and waseca, where we see decrease in the yield for 1931-32. St.paul and waseca had decreasing trend till 1933 and then there yield increased for the next 3 years.
+Observations:
+1. Not all of the locations follow the same patterns. Crookston and Duluth follow a similar pattern and St Paul and Waseca follow a similar pattern as well.
+2. The overall shape of the year wise variations is different across all locations.
+3.We can also observe that the yields increased at some locations while it decreased at the others. For instance, in St Paul and Waseca the yileds follow a decreasing trend until the year 1933 and then they seem to increase in the last two years.
+At the same time, we can see that in Crookston and Duluth there is a decreasing trend in the yield after 1934.
+4.Based on the observations in the faceted graph we can say that there is strong interaction between the year and site variables.
+
+
+#### model Question 2:
+
+
+```{r}
+data$years <- as.factor(data$year) #will treat it as categorical
+data$sites <- as.factor(data$site)
+data.model=lm(yield~gen+years+sites+years:sites,data=data)#psi = psi.bisquare
+#summary(data.model)
+```
+
+
+```{r,fig.width=10,fig.height=6}
+library(broom)
+data2=data
+data.model1=lm(yield~gen+years+site,data=data2)
+data2$resid=residuals(data.model1)
+ggplot(data2,aes(x=year,y=resid,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Resid')+ggtitle('Year vs Residuals  based on location')
+```
+
+```{r,fig.width=10,fig.height=6}
+library(broom)
+data2=data
+data.model1=lm(yield~gen+years+site,data=data2)
+data2$resid=residuals(data.model1)
+ggplot(data2,aes(x=year,y=resid,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Resid')+ggtitle('Year vs Residuals  based on location without interaction between year and location')
+```
+
+```{r,fig.width=10,fig.height=6}
+library(broom)
+data2=data
+data.model1=lm(yield~gen+years+site+years:site,data=data2)
+data2$resid=residuals(data.model1)
+ggplot(data2,aes(x=year,y=resid,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Resid')+ggtitle('Year vs Residuals  based on location with interaction between year and location')
+```
+
+#### From the Plot in the question 1 we saw that there is an interaction between the site and year which has to be taken into account. Hence fitted a lm model taking into account the interaction between the site and year. We can see from the residuals of the two models that the one with interaction has data points randomly scattered while the one without interaction follows certain patterns. Hence chose the lm model with the year and site interaction.
+
+#### Creating 
+
+```{r}
+barley.effects=dummy.coef(mdata.lm) #gen+years+site+years:site
+barley.effects
+```
+
+
+```{r}
+year.site.main=outer(barley.effects$years,barley.effects$sites,'+')
+year.site.main
+```
+
+```{r}
+year.site.inter=barley.effects$"years:sites"
+year.site.inter
+```
+
+```{r}
+year.site.effect=year.site.main+year.site.inter
+year.site.effect  
+```
+
+```{r}
+years=rep(rownames(year.site.main),6)
+sites=rep(colnames(year.site.main),each=10)
+year.site.df=data.frame(year=years,site=sites,effect=as.vector(year.site.effect ))
+View(year.site.df)
+```
+
+
+
+```{r}
+ggplot(year.site.df,aes(x=effect,y=site))+geom_point()+facet_wrap(~year)+xlab('Effects')+ylab('Sites')+ggtitle('Site vs Effect based on effect')
+```
+
+
+
+#### 
+From the Plot in the question 1 we saw that there is an interaction between the site and year which has to be taken into account. 
+Hence fitted a lm model taking into account the interaction between the site and year.
+We can see from the above plot that
+1.In the above graph we can see that there are no outliers which are deviating from the trend.
+2.Coming to Morris, the prediction effects tend to increase until 1929 and it decreases in the year 1930 after which there is a gradual increase until the year 1936. We can see that there is not much of a difference in the effects in the years 1931-1933, which could suggest there was an anomaly in the data.
+3. We can see a similar trend in the prediction effects being followed by the Waseca site too, which tells us that the Morris data is not an anomaly as such.
+
+#question 3
+# interaction on the year and site and lm model 
+
+```{r,fig.width=10,fig.height=6}
+#data$years <- as.factor(data$year)
+data1=data
+data.model=lm(yield~gen+years+site+years:site,data=data1)
+library(broom)
+#data1=data
+#barley.data.df=augment(data.model)
+data1$preds=fitted.values(data.model)
+data1$resid=residuals(data.model)
+ggplot(data1,aes(x=year,y=preds,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Fitted')+ggtitle('Year vs Fitted Values based on location')
+ggplot(data1,aes(x=year,y=resid,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Resid')+ggtitle('Year vs Residuals  based on location')
+```
+
+By looking at the residuals we can see that there is no particular pattern being followed and they seem to be randomly scatters around the zero line, by which we can say that it is a good model to judge.
+
+The years 1931-1932 data of Morris seems to be more of a natural variation rather than a mistake as we can see from the fitted and residuals model plotted above too.
+
+From the fitted graph we can see over the years from 1930-1935 there is an upward trend in the yield and the fitted values of 1932 follows this trend as well, which tells us that it is not a mistake. 
+

@@ -1,0 +1,212 @@
+---
+title: "MiniProject1"
+author: "Aniket Kale"
+date: "9/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Mini-Project 1
+
+### Part 2:
+
+```{r}
+# import libararies
+
+library(tidyverse)
+library(broom)
+library(readxl)
+library(tidycensus)
+census_api_key("10f0d49b7a43755878e4706e12c9b552b96428f7")
+
+```
+
+```{r}
+#read data files
+cpi = read.csv("cpi.csv")
+pop = read.csv("population.csv")
+areas = read.csv("https://raw.githubusercontent.com/jakevdp/data-USstates/master/state-areas.csv", stringsAsFactors=FALSE, fileEncoding="latin1")
+
+scode = read.delim("../Mini project 1/statecodes.txt", header=F, sep=" ")
+hpi = read_excel("../Mini project 1/State_and_US_SA.xls", skip=5)
+```
+
+```{r}
+# loading tidycensus data
+# census20 =  get_decennial(geography = "state", 
+#                        variables = "P001001", 
+#                        year = 2020)
+# census10 =  get_decennial(geography = "state", 
+#                        variables = "P001001", 
+#                        year = 2010)
+# census00 =  get_decennial(geography = "state", 
+#                        variables = "P001001", 
+#                        year = 2000)
+# census90 = get_decennial(geography = "state", 
+#                        variables = "P0010001", 
+#                        year = 1990)
+# View(census10)
+```
+
+```{r}
+# head(areas)
+
+# density.00 = merge(
+#   x=census00,
+#   y=areas,
+#   by.x="NAME", by.y="state")
+# density.00 = density.00%>%
+#   mutate(density = value/area..sq..mi.)
+```
+
+```{r}
+# Pre-process population df
+names(pop)[2] = "state"
+names(pop)[5] = "total.1970"
+names(pop)[6] = "total.1980"
+names(pop)[7] = "total.1990"
+names(pop)[8] = "total.2000"
+names(pop)[9] = "total.2010"
+names(pop)[10] = "total.2008.2012"
+pop = pop[,c( "state",
+              "total.1970",
+              "total.1980",
+              "total.1990",
+              "total.2000",
+              "total.2010",
+              "total.2008.2012"
+              )]
+# head(pop)
+```
+
+```{r}
+# computing population density for all the states, after merging with areas df
+pop.density = merge(
+  x=pop,
+  y=areas,
+  by.x="state", by.y="state")
+
+pop.density = pop.density %>%
+  mutate(desity.1970 = total.1970/area..sq..mi.,
+        desity.1980 = total.1980/area..sq..mi.,
+        desity.1990 = total.1990/area..sq..mi.,
+        desity.2000 = total.2000/area..sq..mi.,
+        desity.2010 = total.2010/area..sq..mi.,
+        desity.2008.2012 = total.2008.2012/area..sq..mi.
+)
+pop.density = merge(
+  x=pop.density%>% mutate(state = toupper(state)),
+  y=scode,
+  by.x="state", by.y="V3")
+pop.density = select(pop.density, -c("V1", "V4", "V5"))
+names(pop.density)[length(names(pop.density))] = "ST"
+head(pop.density)
+```
+
+```{r}
+hpi.dec = hpi %>% filter(
+  Month %in% c("1980M12", "1990M12", "2000M12", "2010M12", "2019M12")
+)
+```
+
+
+```{r}
+scode = scode %>% filter(
+  V2 != ""
+)
+print("Updated rows:")
+print(nrow(scode))
+```
+
+```{r}
+hpi.dec.t = as.data.frame(t(hpi.dec))
+names(hpi.dec.t) <- as.matrix(hpi.dec.t[1, ])
+hpi.dec.t <- hpi.dec.t[-1, ]
+hpi.dec.t[] <- lapply(hpi.dec.t, function(x) type.convert(as.character(x)))
+hpi.dec.t <- cbind(ST = rownames(hpi.dec.t), hpi.dec.t)
+rownames(hpi.dec.t) <- 1:nrow(hpi.dec.t)
+head(hpi.dec.t)
+```
+```{r}
+ 
+pop.hpi.merged = merge(
+  x=hpi.dec.t,
+  y=pop.density,
+  by.x="ST", by.y="ST")
+names(pop.hpi.merged)[2] = "hpi.1980"
+names(pop.hpi.merged)[3] = "hpi.1990"
+names(pop.hpi.merged)[4] = "hpi.2000"
+names(pop.hpi.merged)[5] = "hpi.2010"
+names(pop.hpi.merged)[6] = "hpi.2019"
+
+head(pop.hpi.merged)
+```
+```{r}
+colors <- c("1980" = "black", "1990" = "blue", "2000" = "darkgreen", "2010" = "orange")
+
+pop.hpi.merged %>%
+  ggplot(aes(x=hpi.1980, y =desity.1980, color="1980")) +geom_point() +
+  geom_point(data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))+
+  labs(y = "HPI",
+         x = "Population Density",
+         color = "Legend")+
+    scale_color_manual(values = colors)+
+  geom_smooth(method = "lm" ,se=F)+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))+
+  facet_wrap(~state)
+```
+```{r}
+colors <- c("1980" = "black", "1990" = "blue", "2000" = "darkgreen", "2010" = "orange")
+
+pop.hpi.merged %>%
+  ggplot(aes(y=hpi.1980, x =desity.1980, color="1980")) +
+  geom_point() +
+  geom_point(data = pop.hpi.merged, aes(y=hpi.1990, x =desity.1990, col = "1990"))+
+  geom_point(data = pop.hpi.merged, aes(y=hpi.2000, x =desity.2000, col = "2000"))+
+  geom_point(data = pop.hpi.merged, aes(y=hpi.2010, x =desity.2010, col = "2010"))+
+  labs(y = "HPI",
+         x = "Population Density",
+         color = "Legend")+
+    scale_color_manual(values = colors)+
+  geom_smooth(method = "lm" ,se=F)+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(y=hpi.1990, x =desity.1990, col = "1990"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(y=hpi.2000, x =desity.2000, col = "2000"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(y=hpi.2010, x =desity.2010, col = "2010"))
+```
+
+```{r}
+colors <- c("1980" = "black", "1990" = "blue", "2000" = "darkgreen", "2010" = "orange")
+
+pop.hpi.merged %>%
+  ggplot(aes(x=hpi.1980, y =desity.1980, color="1980")) +
+  geom_point() +
+  geom_point(data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))+
+  labs(x = "HPI",
+         y = "Population Density",
+         color = "Legend")+
+    scale_color_manual(values = colors)+
+  geom_smooth(method = "lm" ,se=F)+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))
+```
+
+#### Outliers:
+* There are two influencial outliers for every year.
+* Instead of completely removing outliers, we can try to down weigh them. Because these points represent two states and they just cannot be eliminated.
+
+```{r}
+pop.hpi.merged %>%
+  filter(desity.1980>500 | desity.1990>500 | desity.2000>500 | desity.2010>500)
+```
+

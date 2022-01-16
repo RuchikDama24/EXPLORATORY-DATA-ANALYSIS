@@ -1,0 +1,218 @@
+---
+title: "s670_Final_Project"
+author: "Ruchik Rohit Dama"
+date: "11/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+
+```{r,message=FALSE}
+life = read_csv("../Final Project/Life Expectancy Data.csv")
+
+names(life)[4] = "Life_expectancy" 
+names(life)[8] = "percentage_expenditure" 
+names(life)[14] ="Total_expenditure"
+# names(life)
+selected_names = c("Country", "Year", "Status", "Life_expectancy", "percentage_expenditure", "Polio", "Diphtheria", "Total_expenditure", "BMI", "GDP", "Population", "Schooling")
+life = life%>% dplyr::select(all_of(selected_names))
+
+#lapply(life,function(x) { length(which(is.na(x)))}) #check null values
+life=na.omit(life)
+```
+
+```{r}
+View(life)
+```
+
+
+```{r}
+life1=life[,c("Year","Status","Life_expectancy")]
+head(life1)
+```
+
+```{r}
+life_mean=aggregate(Life_expectancy~Year+Status,data=life1,mean)
+life_mean
+```
+
+```{r}
+ggplot(life_mean,aes(x = Year , y = Life_expectancy))+
+  geom_point(color=" gray")+
+  geom_smooth(color="dark blue", se=FALSE)+ 
+  labs(title = "Life Expectancy vs Time",
+           #caption = "HPI: House Price Index",
+    x=" Year",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~Status)
+```
+
+```{r}
+life1=life[,c("Year","Status","Life_expectancy")]
+life_mean=aggregate(Life_expectancy~Year+Status,data=life1,mean)
+
+ggplot(life_mean,aes(x = Year , y = Life_expectancy))+
+  geom_point(color=" gray")+
+  geom_smooth(color="dark blue", se=FALSE)+ 
+  labs(title = "Trend of Life expenctancy over the years",
+           #caption = "HPI: House Price Index",
+    x=" Year",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~Status)
+
+```
+```{r}
+cols1=c("Developed","Developing")
+life_p=life_mean %>% 
+pivot_wider(names_from = Status, values_from = Life_expectancy)
+
+```
+```{r}
+life_p=life_p[which(life_p$Year<2015),]
+```
+
+```{r}
+library(tidyverse)
+life_p1=life_p
+
+```
+
+```{r}
+nrow(life_p1)
+```
+
+
+```{r}
+l <- PercChange(life_p1, Var = 'Developing',
+         type = 'proportion',
+         NewVar = 'PercentChange',
+         slideBy = -1)
+
+l
+```
+
+```{r}
+library(DataCombine)
+```
+
+
+```{r}
+A <- c(1, 1, 1, 1, 1, 2, 2, 2, 2, 2)
+B <- c(1:10)
+Data <- data.frame(A, B)
+
+# Find percentage change from two periods before
+Out <- PercChange(Data, Var = 'B',
+         type = 'proportion',
+         NewVar = 'PercentChange',
+         slideBy = -1)
+
+Out
+```
+
+
+
+```{r}
+life_p[which(life_p$Year==2000),]
+```
+
+
+
+
+```{r}
+ggplot(life_mean,aes(x = Year , y = Life_expectancy))+
+  geom_point(color=" gray")+
+  geom_smooth(color="dark blue", se=FALSE)+ 
+  labs(title = "Life Expectancy vs Time",
+           #caption = "HPI: House Price Index",
+    x=" Year",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~Status)
+```
+
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r, message=FALSE,warning=FALSE,echo=FALSE}
+ggplot(life,aes(x = Year , y = Life_expectancy))+
+  geom_point(color=" gray")+
+  geom_smooth(color="dark blue", se=FALSE)+ 
+  labs(title = "Life Expectancy vs Time",
+           #caption = "HPI: House Price Index",
+    x=" Year",y="Life Expectancy")+
+    theme_bw() 
+
+```
+
+
+```{r, message=FALSE,warning=FALSE,echo=FALSE}
+ggplot(life,aes(x = Year , y = Life_expectancy))+
+  geom_point(color=" gray")+
+  geom_smooth(color="dark blue", se=FALSE)+ 
+  labs(title = "Life Expectancy vs Time",
+           #caption = "HPI: House Price Index",
+    x=" Year",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~Status)
+
+```
+
+```{r}
+ggplot(life,aes(x = Total_expenditure , y = Life_expectancy))+
+  geom_point(color=" gray")+
+  geom_smooth(method="loess",color="dark blue", se=FALSE)+ 
+  labs(title = "Life Expectancy vs Time",
+           #caption = "HPI: House Price Index",
+    x=" Total_expenditure",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~Status)
+
+```
+
+```{r}
+# Graph 3.
+ggplot(life,aes(x = percentage_expenditure , y = Life_expectancy))+
+  geom_point(color=" gray")+scale_x_log10()+
+  geom_smooth(method="loess",color="dark blue", se=FALSE)+ 
+  labs(title = "Life Expectancy vs Percentage Expenditure",
+           #caption = "HPI: House Price Index",
+    x=" log of percentage_expenditure",y="Life Expectancy")+
+    theme_bw() +facet_wrap(~Status)
+
+```
+
+```{r}
+life_0005=life[which(life$Year>=2000 & life$Year<=2005),]
+```
+```{r}
+nrow(life_0005)
+```
+```{r}
+ggplot(life_0005,aes(x = percentage_expenditure , y = Life_expectancy))+
+  geom_point(color=" gray")+scale_x_log10()+
+  geom_smooth(method="loess",color="dark blue", se=FALSE)+ 
+  labs(title = "Life Expectancy vs Time",
+           #caption = "HPI: House Price Index",
+    x=" log of percentage_expenditure",y="Life Expectancy")+
+    theme_bw() +facet_wrap(Year~Status)
+
+```
+
+
+```{r}
+life$expenditure_diff_2000<- round((total_pop$POP_2000 - total_pop$POP_1990)*100/total_pop$POP_1990)
+life$expenditure_diff_2010<- round((total_pop$POP_2010 - total_pop$POP_2000)*100/total_pop$POP_2000)
+life$expenditure_diff_2015<- round((total_pop$POP_2018 - total_pop$POP_2010)*100/total_pop$POP_2010)
+```
+
+
+
+
+

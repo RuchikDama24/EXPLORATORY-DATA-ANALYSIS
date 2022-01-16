@@ -1,0 +1,45 @@
+---
+title: "In-class 8/24/21"
+author: "S470/670"
+date: "8/24/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Powerball simulation
+
+In p\Powerball, choose 5 numbers from 1 to 69 without replacement, then choose one number from 1 to 26.
+
+What is the distribution of the sum of all six numbers?
+
+```{r}
+powerSum <- function(){
+  x = c(sample(69, 5), sample(26, 1))
+  return(sum(x))
+}
+```
+
+```{r}
+simSums = replicate(10000, powerSum())
+```
+
+```{r}
+hist(simSums)
+```
+How often did we get a sum <= 106?
+
+```{r}
+mean(simSums <= 106)
+```
+
+
+
+
+
+
+

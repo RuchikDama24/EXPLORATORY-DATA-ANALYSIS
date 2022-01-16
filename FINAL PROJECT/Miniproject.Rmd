@@ -1,0 +1,165 @@
+---
+title: "project_updated"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+```{r}
+life=read.csv("Life Expectancy Data.csv",sep=",",header = TRUE)
+```
+
+```{r}
+library(countrycode)
+#life1=life
+#life1 = data.frame(life)
+#life=data.frame(life)
+life$continent <- countrycode(sourcevar = life[, "Country"],
+                            origin = "country.name",
+                            destination = "continent")
+sa = c("Argentina", "Brazil", "Chile","Colombia","Ecuador", "Guyana", "Paraguay", "Peru", "Suriname", "Uruguay","Bolivia (Plurinational State of)","Venezuela (Bolivarian Republic of)")
+na=c("Belize","Canada","Costa Rica","Dominican Republic","El Salvador", "Guatemala", "Haiti", "Honduras", "Jamaica", "Mexico","Nicaragua","Panama","Trinidad and Tobago","Bahamas","Barbados","Saint Lucia","Antigua and Barbuda","Cuba","Grenada","Saint Vincent and the Grenadines")
+#life2=data.frame(life1)
+life[which(life$Country %in% sa),]$continent="South America"
+life[which(life$Country %in% na),]$continent="North America"
+```
+
+```{r}
+#life=read.csv("Life Expectancy Data.csv",sep=",",header = TRUE)
+```
+# cleaning 
+
+```{r}
+names(life)
+```
+
+```{r}
+head(life)
+```
+
+```{r}
+#life = read_csv("../Final Project/Life Expectancy Data.csv")
+library(dplyr)
+names(life)[4] = "Life_expectancy" 
+names(life)[8] = "Percentage_expenditure"
+names(life)[14] ="Total_expenditure"
+# names(life)
+selected_names = c("Country", "Year", "Status", "Life_expectancy", "Percentage_expenditure", "Polio", "Diphtheria", "Total_expenditure", "BMI", "GDP", "Population", "Schooling","continent")
+life = life%>% dplyr::select(selected_names)
+
+lapply(life,function(x) { length(which(is.na(x)))}) #check null values
+life=na.omit(life)
+```
+
+```{r}
+variable=life$Year
+life_grouped= life %>% 
+  mutate(years_grouped = ifelse(variable>=2000 & variable<2005, "2000-2004",
+                     ifelse(variable>=2005 & variable<=2010, "2005-2010",
+                            ifelse(variable>=2011 & variable<2016, "2011-2015", "NONE"))))
+```
+```{r}
+life_grouped_filtered=filter(life_grouped, life_grouped$Year == 2000 | life_grouped$Year == 2005 | life_grouped$Year == 2010 | life_grouped$Year == 2015)
+```
+
+```{r}
+life_00 <- subset(life_grouped, life_grouped$Year == 2000)#[c('NAME','value')]
+life_05 <- subset(life_grouped, life_grouped$Year == 2005)#[c('NAME','value')]
+life_10 <- subset(life_grouped, life_grouped$Year == 2010)#[c('NAME','value')]
+life_14 <- subset(life_grouped, life_grouped$Year == 2014)#[c('NAME','value')]
+```
+
+```{r}
+life_combined=data.frame(life_00)
+colnames(life_combined)[colnames(life_combined) == "Life_expectancy"] <- "Life_expectancy_2000"
+colnames(life_combined)[colnames(life_combined) == "Total_expenditure"] <- "Total_expenditure_2000"
+colnames(life_combined)[colnames(life_combined) == "Status"] <- "Status_2000"
+colnames(life_combined)[colnames(life_combined) == "Schooling"] <- "Schooling_2000"   # schooling, polio hep b
+colnames(life_combined)[colnames(life_combined) == "Polio"] <- "Polio_2000"
+life_combined <- merge(life_combined, life_05, by = c("Country"))
+colnames(life_combined)[colnames(life_combined) == "Life_expectancy"] <- "Life_expectancy_2005"
+colnames(life_combined)[colnames(life_combined) == "Total_expenditure"] <- "Total_expenditure_2005"
+colnames(life_combined)[colnames(life_combined) == "Status"] <- "Status_2005"
+colnames(life_combined)[colnames(life_combined) == "Schooling"] <- "Schooling_2005"   # schooling, polio hep b
+colnames(life_combined)[colnames(life_combined) == "Polio"] <- "Polio_2005"
+life_combined <- merge(life_combined, life_10, by = c("Country"))
+colnames(life_combined)[colnames(life_combined) == "Life_expectancy"] <- "Life_expectancy_2010"
+colnames(life_combined)[colnames(life_combined) == "Total_expenditure"] <- "Total_expenditure_2010"
+colnames(life_combined)[colnames(life_combined) == "Status"] <- "Status_2010"
+colnames(life_combined)[colnames(life_combined) == "Schooling"] <- "Schooling_2010"   # schooling, polio hep b
+colnames(life_combined)[colnames(life_combined) == "Polio"] <- "Polio_2010"
+life_combined <- merge(life_combined, life_14, by = c("Country"))
+colnames(life_combined)[colnames(life_combined) == "Life_expectancy"] <- "Life_expectancy_2014" 
+colnames(life_combined)[colnames(life_combined) == "Total_expenditure"] <- "Total_expenditure_2014"
+colnames(life_combined)[colnames(life_combined) == "Status"] <- "Status_2014"
+colnames(life_combined)[colnames(life_combined) == "Schooling"] <- "Schooling_2014"   # schooling, polio hep b
+colnames(life_combined)[colnames(life_combined) == "Polio"] <- "Polio_2014"
+```
+
+```{r}
+life_combined$life_Percentage_2014<- round((life_combined$Life_expectancy_2014 - life_combined$Life_expectancy_2000)*100/life_combined$Life_expectancy_2000)
+life_combined$Polio_Percentage_2014<- round((life_combined$Polio_2014 - life_combined$Polio_2000)*100/life_combined$Polio_2000)
+life_combined$Schooling_Percentage_2014<- round((life_combined$Schooling_2014 - life_combined$Schooling_2000)*100/life_combined$Schooling_2000)
+```
+
+
+```{r}
+ggplot( aes(x = life_Percentage_2014, y =Polio_Percentage_2014),data=life_combined[c('Total_expenditure_2000','life_Percentage_2014','Status_2014','continent.x','Polio_Percentage_2014')])+geom_point(color=" gray")+geom_smooth(method='lm',color="dark blue", se=FALSE)+theme_bw() +facet_wrap(~continent.x,labeller = label_both)+ggtitle('%change_in_Life_expectancy vs %change_in_Polio faceted by Continent')#+xlim(c(0,15))
+```
+
+```{r}
+ggplot( aes(x = life_Percentage_2014, y =Schooling_Percentage_2014),data=life_combined[c('Total_expenditure_2000','life_Percentage_2014','Status_2014','continent.x','Schooling_Percentage_2014')])+geom_point(color=" gray")+geom_smooth(method='lm',color="dark blue", se=FALSE)+theme_bw() +facet_wrap(~continent.x,labeller = label_both)+ggtitle('%change_in_Life_expectancy vs %change_in_schooling faceted by Continent')#+xlim(c(0,15))
+```
+
+```{r}
+#ggplot( aes(x = cpi_expenditure_2005, y =cpi_life_2005),data=life_combined[c('cpi_expenditure_2005','cpi_life_2005','Status_2005')])+xlim(c(0,100))+geom_point()+geom_smooth(method='rlm',se=FALSE)+facet_wrap(~Status_2005,labeller = label_both)+ggtitle('%change_in_expenditure vs %change_in_expectancy faceted by Status')
+head(life_combined)
+```
+
+#expenditure
+```{r}
+ggplot( aes(x = Total_expenditure_2000, y =life_Percentage_2015,group=Status_2014,color=Status_2014),data=life_combined[c('Total_expenditure_2000','life_Percentage_2015','Status_2014','continent.x')])+geom_point()+geom_smooth(method='lm',se=FALSE)+facet_wrap(~continent.x,labeller = label_both)+ggtitle('%change_in_expenditure vs %change_in_expectancy faceted by Status')#+xlim(c(0,15))
+```
+
+#schooling
+```{r}
+ggplot( aes(x = Schooling_2000, y =life_Percentage_2015,group=Status_2014,color=Status_2014),data=life_combined[c('Schooling_2000','life_Percentage_2015','Status_2014','continent.x')])+geom_point()+geom_smooth(method='lm',se=FALSE)+facet_wrap(~continent.x,labeller = label_both)+ggtitle('%change_in_expenditure vs %change_in_expectancy faceted by Status')
+#+xlim(c(0,15))
+#ggplot( aes(x = Schooling_2000, y =life_Percentage_2015),data=life_combined[c('Schooling_2000','life_Percentage_2015','Status_2014')])+xlim(c(0,20))+geom_point()+geom_smooth(method='lm',se=FALSE)+facet_wrap(~Status_2014,labeller = label_both)+ggtitle('%change_in_expenditure vs %change_in_expectancy faceted by Status')
+```
+
+#polio
+```{r}
+ggplot( aes(x = Polio_2000,y =life_Percentage_2015,group=Status_2014,color=Status_2014),data=life_combined[c('Polio_2000','life_Percentage_2015','Status_2014','continent.x')])+geom_point()+geom_smooth(method='lm',se=FALSE)+facet_wrap(~continent.x,labeller = label_both)+ggtitle('%change_in_expenditure vs %change_in_expectancy faceted by Status')
+#+xlim(c(0,15))
+#ggplot( aes(x = Polio_2000, y =life_Percentage_2015),data=life_combined[c('Polio_2000','life_Percentage_2015','Status_2014')])+xlim(c(0,100))+geom_point()+geom_smooth(method='lm',se=FALSE)+facet_wrap(~Status_2014,labeller = label_both)+ggtitle('%change_in_expenditure vs %change_in_expectancy faceted by Status')
+```
+
+
+```{r}
+model=lm(life_Percentage_2015 ~ Total_expenditure_2000+Schooling_2000+Polio_2000+continent.x,data = life_combined[c('Total_expenditure_2000','Schooling_2000','Polio_2000','life_Percentage_2015','continent.x')])
+summary(model)
+```

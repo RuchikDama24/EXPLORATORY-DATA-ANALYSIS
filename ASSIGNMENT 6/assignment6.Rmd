@@ -1,0 +1,114 @@
+---
+title: "Assignment6"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+data <- read.table("minnesota.barley.yield.txt",sep =" ", header = TRUE, dec =".")
+```
+
+```{r}
+library(ggplot2)
+library('tidyverse')
+library('MASS')
+```
+
+```{r}
+colnames(data)
+```
+
+```{r}
+data$year=as.factor(data$year)
+data$site=as.factor(data$site)
+data$yield=as.numeric(data$yield)
+```
+
+```{r,fig.width=10,fig.height=6}
+ggplot( aes(x = year, y = yield,group=site),data=data)+geom_point()+facet_wrap(~site)+ggtitle('Yield vs year based on location')+geom_smooth(method=loess,se=FALSE)+xlab('Year')+ylab('Yield')
+```
+####
+Observations:
+1. Not all of the locations follow the same patterns. Crookston and Duluth follow a similar pattern and St Paul and Waseca follow a similar pattern as well.
+2. The overall shape of the year wise variations is different across all locations.
+3.We can also observe that the yields increased at some locations while it decreased at the others. For instance, in St Paul and Waseca the yileds follow a decreasing trend until the year 1933 and then they seem to increase in the last two years.
+At the same time, we can see that in Crookston and Duluth there is a decreasing trend in the yield after 1934.
+4.Based on the observations in the faceted graph we can say that there is strong interaction between the year and site variables.
+
+
+#### model Question 2:
+
+
+```{r}
+data$years <- as.factor(data$year) #will treat it as categorical
+data$sites <- as.factor(data$site)
+data.model=lm(yield~gen+years+sites+years:sites,data=data)#psi = psi.bisquare
+summary(data.model)
+```
+
+```{r}
+barley.effects=dummy.coef(data.model) #gen+years+site+years:site
+barley.effects
+```
+
+
+```{r}
+year.site.main=outer(barley.effects$years,barley.effects$sites,'+')
+year.site.main
+```
+
+```{r}
+year.site.inter=barley.effects$"years:sites"
+year.site.inter
+```
+
+```{r}
+year.site.effect=year.site.main+year.site.inter
+year.site.effect  
+```
+
+```{r}
+years=rep(rownames(year.site.main),6)
+sites=rep(colnames(year.site.main),each=10)
+year.site.df=data.frame(year=years,site=sites,effect=as.vector(year.site.effect ))
+View(year.site.df)
+```
+
+```{r}
+ggplot(year.site.df,aes(x=effect,y=site,color=year))+geom_point()+facet_wrap(~site)
+```
+
+```{r}
+ggplot(year.site.df,aes(x=effect,y=site))+geom_point()+facet_wrap(~year)+xlab('Effects')+ylab('Sites')+ggtitle('Site vs Effect based on effect')
+```
+
+#### We can see from the above plot that
+1.In the above graph we can see that there are no outliers which are deviating from the trend.
+
+#question 3
+# interaction on the year and site and lm model 
+
+```{r,fig.width=10,fig.height=6}
+#data$years <- as.factor(data$year)
+data1=data
+data.model=lm(yield~gen+years+site+years:site,data=data1)
+library(broom)
+#data1=data
+#barley.data.df=augment(data.model)
+data1$preds=fitted.values(data.model)
+data1$resid=residuals(data.model)
+ggplot(data1,aes(x=year,y=preds,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Fitted')+ggtitle('Year vs Fitted Values based on location')
+ggplot(data1,aes(x=year,y=resid,group=site))+geom_point()+facet_wrap(~site)+geom_smooth(method= loess,se=FALSE)+xlab('Year')+ylab('Resid')+ggtitle('Year vs Residuals  based on location')
+```
+
+
+
+### we can see that the residual plot is good after the interaction and the predicted plot has a different trend for each location and after looking at morris it tells us that is it possible that the upwards trend can be attributed to an increase in the yield in the year 1932 and it is not an anomaly.
+
+#it is a typical random variation
+# it isnt very far away from the data and it is not an outlier
+
+### in some cases here you might want to get the fitted values of some variables you actually care about. in this case gen should not matter at all

@@ -1,0 +1,145 @@
+---
+title: "s670-HW5"
+author: "Ruchik Rohit Dama"
+date: "10/29/2021"
+output: html_document
+---
+
+#### DISCUSSED WITH SHASHANK KUMAR.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE,message=FALSE)
+library(readxl)
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(arm)
+library(broom)
+cb_palette = c(#FFC107,#D81B60,"#999999", "#E69F00", "#56B4E9", "#009E73",
+"#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+```
+
+#### READING THE FILES:-
+
+```{r}
+data = read.delim(file = "../ASSIGNMENT 5/curry2015-16.txt", header = TRUE, sep = "", dec = ".")
+data = data[,c('EVENT_TYPE','SHOT_MADE_FLAG','SHOT_DISTANCE','LOC_X','LOC_Y','SHOT_TYPE')]
+```
+
+
+
+### QUESTION 1:-Plot the data to show the location of Curry’s shots using color to distinguish between made and missed shots, similarly to the picture below but more colorblind-friendly. (You don’t have to include the picture of the court unless you want to show off.) NB: It should use coord fixed() since the units are the same for both axes.
+
+```{r}
+ggplot(data, aes(x = LOC_X, y = LOC_Y, color = EVENT_TYPE))  +
+  geom_point() + 
+  coord_fixed(ratio = 1) +
+xlab('X Location ')+ylab('Y Location ')+labs(title='STEPH CURRY SHOTS PLAYED')+ 
+  scale_color_manual(values = cb_palette, labels = c("Made Shot", "Missed Shot"))
+```
+
+#### Using ggplot to  show the location of Curry’s shots and using a different color palette to be more colorblind-friendly.
+
+
+
+### Question 2:- Fit a logistic regression to predict whether the shot is made, using the single predictor SHOT DISTANCE. Draw an appropriate ggplot of the fitted curve and write an equation for the fit.
+
+```{r}
+data.logit = glm(SHOT_MADE_FLAG ~ SHOT_DISTANCE,
+family = binomial, data = data)
+summary(data.logit)
+```
+#### Using glm and only one predictor (SHOT_DISTANCE) to fit a logistic regression and to predict whether the shot is made or not. After fitting the data explicitly, We use summary for getting the equation. Summary gives us a lot of information and noe using the information from coefficients:-
+
+#### Using the Estimate column to get the Equation:-
+              
+####               logit[p(SHOT_MADE)]=(Estimate_Intercept) + (Estimate_coefficient)*(SHOT_DISTANCE)
+####               Therefore,
+####               logit[p(SHOT_MADE)]=0.545 + (-0.030)*(SHOT_DISTANCE)
+
+
+
+
+
+#### Plotting an appropriate ggplot of the logistic regression              
+
+```{r}
+ggplot(data,aes(x=SHOT_DISTANCE,y=SHOT_MADE_FLAG))+geom_point(height = 0.1,width=0.20)+
+geom_smooth(method='glm',method.args=(list(family='binomial')),se=FALSE)+
+xlab('SHOT DISTANCE(in Feet) ')+ylab('Shot Outcome')+labs(title='Logistic regression with single predictor(SHOT_DISTANCE)')
+```
+
+### Question 3:- Plot the residuals in a way that shows where the logistic regression doesn’t fit the data well.Describe in some detail how the model is inaccurate.
+
+
+#### Plotting the Residual Plots, between the residual values and SHOT_DISTANCE.
+
+
+```{r}
+data.logit.df = data.frame(data,
+                   .fitted = fitted.values(data.logit),
+                   .resid = residuals(data.logit))
+ggplot(data.logit.df,aes(x =SHOT_DISTANCE , y = .resid))+geom_point(height = 0.1, width = 0.2)+geom_smooth(method='loess',se=FALSE)+labs(title = "Residual Plots(Shot distance v/s Residual Values)",x="SHOT DISTANCE(in Feet)",y="Residual Values")
+```
+
+### Describe in some detail how the model is inaccurate. 
+#### From the above residual plot, we can see that the plot is having a curves, But for a model to be accurate the residual plots should not curves but it should be a straight line near the zero line.So, to reduce the dip in the curve and bring the graph near zero line and for a better model, let's add a new variable that gives the type of  the shot i.e is it a 2 pointer or a 3 pointer.
+
+
+
+
+
+### QUESTION 4:-Fit a better model. You could try a different functional form or a model with more predictors (as long as you use the predictors sensibly.) Your model doesn’t have to be perfect, just better. Draw a graph that shows how your model differs from the simple logistic regression, and convince us that your model is better.
+
+
+#### Converting the 2 pt field goal to 0 and 3 pt field goal to 1.
+
+```{r}
+ data <- data %>% 
+    mutate(SHOT_TYPE = recode(SHOT_TYPE, 
+                      "2PT Field Goal" = "0", 
+                      "3PT Field Goal" = "1"))
+
+```
+
+#### Fitting the new model. Using log(SHOT_DISTANCE +0.1) to handle log(0) values.
+```{r}
+data.logit2 = glm(SHOT_MADE_FLAG ~ log(SHOT_DISTANCE+0.1)+SHOT_TYPE,
+family = binomial, data = data)
+summary(data.logit2)
+```
+#### Plotting the residual plot between shot type and residual values 
+ 
+```{r}
+data.logit.df2 = data.frame(data,
+                   .fitted = fitted.values(data.logit2),
+                   .resid = residuals(data.logit2))
+ggplot(data.logit.df2,aes(x =SHOT_TYPE , y = .resid,color=SHOT_TYPE))+geom_point(height = 0.1, width = 0.2)+geom_smooth(method='loess',se=FALSE)+labs(title = "Residual Plots(Shot type v/s Residual Values)",x=" SHOT_TYPE",y="Residual Values")+
+scale_color_manual(values = cb_palette, labels = c("0->2 pointer", "1->3 pointer"))
+
+
+```
+
+
+#### Plotting the residual plot between shot distance and residual values
+
+```{r}
+data.logit.df2 = data.frame(data,
+                   .fitted = fitted.values(data.logit2),
+                   .resid = residuals(data.logit2))
+ggplot(data.logit.df2,aes(x =SHOT_DISTANCE , y = .resid))+geom_point(height = 0.1, width = 0.2)+geom_smooth(method='loess',se=FALSE)+labs(title = "Residual Plots(Shot distance v/s Residual Values)",x=" SHOT DISTANCE(in Feet)",y="Residual Values")
+
+```
+
+#### Comparing the residual plots from the simple logistic regression and after adding the new variable, we can see the new plot is stable till the distance is 40 and then there is a dip. So, the new plot is better than the old residual plot. The dip is there because, the model is predicting that after the distance is more than 40 feet, steph curry doesn't score baskets, but there are few instances where he scores the baskets. So, the model is not perfect but a better version then the simple logistic regression.
+
+
+
+
+
+
+
+
+
+

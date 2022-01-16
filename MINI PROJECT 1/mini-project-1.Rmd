@@ -1,0 +1,538 @@
+---
+title: "mini-project-1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# install.packages("readxl")
+# install.packages("tidycensus")
+```
+
+```{r}
+library(readxl)
+library(ggplot2)
+library(tidycensus)
+library(stringr)
+library(tidyverse)
+library(gridExtra)
+
+census_api_key("f255101db5ca232b7acf768a85abc76796dfbb93",install = TRUE)
+```
+# Part 1: House prices over time
+
+```{r}
+my_data <- read_xls("State_and_US_SA.xls", range = 'A6:BA546', col_names = TRUE)
+head(my_data)
+```
+
+
+### Question 1: How have house prices in the U.S changed since 1975, after adjusting for inflation (i.e. relative to the CPI?)
+
+Separate the date column into Year and Month
+```{r}
+temp_df <- str_split_fixed(my_data$Month, "M", 2)
+head(temp_df)
+dim(temp_df)
+```
+
+Convert them to integers
+```{r}
+my_data$Year <- as.integer(temp_df[,1])
+my_data$Month <- as.integer(temp_df[,2])
+head(my_data)
+```
+
+
+Change in house price in the U.S without adjusting for inflation.
+
+```{r}
+ggplot(my_data, aes(x = my_data$Year, y = my_data$`United States seasonally adjusted`)) + geom_point() + xlab('Years') + ylab('Change in US house prices') + ggtitle('How have house price changed in US since 1975?')
+```
+
+```{r}
+ggsave("q1_1.png")
+```
+
+We see that the house price increases till 2005, then takes a small dip for the next five years and finally increases again.
+
+```{r}
+cpi <- read.csv('cpi.csv')
+head(cpi)
+```
+
+```{r}
+new_col <- subset(cpi, cpi$Year == 2019)
+vals <- new_col$Value
+cpi$denom <- rep(vals, times = 73)
+head(cpi)
+```
+
+
+Merge the cpi and house price data frames
+```{r}
+my_data <- merge(my_data, cpi, by = "Year")
+head(my_data)
+```
+
+Rename the col to Hprice
+```{r}
+colnames(my_data)[colnames(my_data) == "United States seasonally adjusted"] <- "Hprice"
+head(my_data)
+```
+
+Adjusting the states for inflation
+```{r}
+my_data[,3:53] <- (my_data[,3:53] * my_data$denom) / my_data$Value
+head(my_data)
+```
+
+Adjusting house price across US for inflation.
+```{r}
+my_data$Hprice <- (my_data$Hprice * my_data$denom) / my_data$Value
+head(my_data)
+```
+
+Plotting the adjusted house prices. We can sort of see a trend here. The houses follow a cyclic increase and decrease pattern.
+```{r}
+ggplot(my_data, aes(x = my_data$Year, y = my_data$Hprice)) + geom_point() + xlab('Years') + ylab('Change in US house prices') + ggtitle('How have house price changed in US since 1975 after adjusting for inflation?')
+```
+
+```{r}
+ggsave("q1_2.png")
+```
+
+### Question 2: How have changes in price varied by state?
+
+Creating a separate df for states
+```{r}
+state <- my_data[,1:53]
+state <- state[-c(2)]
+head(state)
+```
+
+Reshaping it in a way we want
+```{r}
+state_melted = reshape2::melt(state,id.var = 'Year')
+head(state_melted)
+```
+
+Mean house price of every state for every year
+
+```{r}
+mean_year = aggregate(value~variable + Year,data=state_melted,mean)
+#head(mean_year)
+#dim(mean_year)
+head(subset(mean_year, mean_year$variable == "HI"))
+```
+
+Change in house price of states with respect to year. Some states have really flat prices while some follow the cyclic pattern that we saw across the US. However in states like DC we see a big bump in prices compared to other states.
+
+```{r}
+state_plot <- ggplot(mean_year, aes(x=Year, y = value)) + geom_line() 
+state_plot + facet_wrap(~variable, ncol = 7)  + theme_minimal()
+```
+
+
+```{r}
+ggsave("q1_3.png")
+```
+
+
+
+```{r}
+first_year = subset(mean_year, mean_year$Year == 1975)
+head(first_year)
+```
+
+
+
+```{r}
+second_year = subset(mean_year, mean_year$Year == 2019)
+head(second_year)
+```
+
+
+```{r}
+colnames(second_year)[colnames(second_year) == "Year"] <- "Year_2"
+colnames(second_year)[colnames(second_year) == "value"] <- "value_2"
+head(second_year)
+```
+
+
+```{r}
+diff_df <- merge(first_year, second_year, by = "variable")
+head(diff_df)
+```
+
+
+```{r}
+diff_df$change <- diff_df$value_2 - diff_df$value
+head(diff_df)
+```
+
+
+```{r}
+m_dec <- diff_df[order(diff_df$change),]
+head(m_dec)
+```
+
+```{r}
+big_dec <- as.vector(m_dec$variable)[1:3]
+big_dec
+```
+
+```{r}
+wv_df <- subset(mean_year, mean_year$variable == "WV")
+ms_df <- subset(mean_year, mean_year$variable == "MS")
+ar_df <- subset(mean_year, mean_year$variable == "AR")
+
+g1 <- ggplot(wv_df, aes(x = Year, y = value)) + geom_line() + ggtitle("West Virginia") 
+g2 <- ggplot(ms_df, aes(x = Year, y = value)) + geom_line() + ggtitle("MISSISSIPPI")
+g3 <- ggplot(ar_df, aes(x = Year, y = value)) + geom_line() + ggtitle("ARKANSAS")
+grid.arrange(g1,g2,g3, nrow = 1)
+
+```
+
+```{r}
+ggsave('q1_p4.png')
+```
+
+
+```{r}
+m_inc <- diff_df[order(-diff_df$change),]
+head(m_inc)
+```
+
+
+
+```{r}
+big_inc <- as.vector(m_inc$variable)[1:3]
+big_inc
+```
+
+```{r}
+dc_df <- subset(mean_year, mean_year$variable == "DC")
+ca_df <- subset(mean_year, mean_year$variable == "CA")
+wa_df <- subset(mean_year, mean_year$variable == "WA")
+
+g1 <- ggplot(dc_df, aes(x = Year, y = value)) + geom_line() + ggtitle("DISTRICT OF COLUMBIA") 
+g2 <- ggplot(ca_df, aes(x = Year, y = value)) + geom_line() + ggtitle("CALIFORNIA")
+g3 <- ggplot(wa_df, aes(x = Year, y = value)) + geom_line() + ggtitle("WASHINGTON")
+grid.arrange(g1,g2,g3, nrow = 1)
+```
+
+
+```{r}
+ggsave('q1_p5.png')
+```
+
+```{r}
+west_states <- c("WA", "MT", "OR", "ID", "WY", "CA", "NV", "UT", "CO", "AZ", "NM", "HI")
+midwest_states <- c("ND", "MN", "SD", "NE", "IA", "KS", "MO", "WI", "MI", "IL", "IN", "OH")
+northeast_states <- c("PA", "NJ", "NY", "CT", "RI", "MA", "VT", "NH", "ME")
+south_states <- c("OK", "TX", "AR", "LA", "MS", "AL", "TM", "KY", "GA", "FL", "SC", "NC", "WV", "VA", "DC", "MD", "DE")
+
+length(west_states) + length(midwest_states) + length(northeast_states) + length(south_states)
+
+west_df <- mean_year[mean_year$variable %in% west_states,]
+midwest_df <- mean_year[mean_year$variable %in% midwest_states,]
+northeast_df <- mean_year[mean_year$variable %in% northeast_states,]
+south_df <- mean_year[mean_year$variable %in% south_states,]
+
+```
+
+
+```{r}
+head(west_df)
+```
+
+
+```{r}
+mean_west = aggregate(value~Year,data=west_df,mean)
+mean_midwest = aggregate(value~Year,data=midwest_df,mean)
+mean_northeast = aggregate(value~Year,data=northeast_df,mean)
+mean_south = aggregate(value~Year,data=south_df,mean)
+head(mean_west)
+```
+
+```{r}
+g1 <- ggplot(mean_west, aes(x = Year, y = value)) + geom_line() + ggtitle("WEST") 
+g2 <- ggplot(mean_midwest, aes(x = Year, y = value)) + geom_line() + ggtitle("MIDWEST")
+g3 <- ggplot(mean_northeast, aes(x = Year, y = value)) + geom_line() + ggtitle("NORTHEAST")
+g4 <- ggplot(mean_south, aes(x = Year, y = value)) + geom_line() + ggtitle("SOUTH")
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+
+```{r}
+ggsave('q1_p6.png')
+```
+
+# Part 2
+
+```{r}
+area <- read.csv('land_area.csv')
+head(area)
+```
+
+```{r}
+colnames(area)[colnames(area) == "State.Code"] <- "NAME"
+head(area)
+```
+
+```{r}
+area$NAME <- toupper(area$NAME)
+head(area)
+```
+
+```{r}
+head(diff_df)
+```
+
+
+```{r}
+df <- read.table('statecodes.txt', sep = "", header = TRUE)
+dim(df)
+```
+
+
+```{r}
+colnames(df)[colnames(df) == "SYMBOL"] <- "variable"
+head(df)
+```
+
+
+
+```{r}
+population_df <- merge(diff_df, df, by = "variable")
+dim(population_df)
+```
+
+```{r}
+area_df <- merge(population_df, area, by = "NAME")
+head(area_df)
+```
+
+```{r}
+ggplot(area_df, aes(x = Density, y = change)) + geom_point() + xlab("Population density") + ylab("Change in house price") + ggtitle("Present day population density vs Change in house price since 1975")
+```
+
+
+```{r}
+sub_area <- subset(area_df, area_df$change <= 100 & area_df$Density <= 1000)
+head(sub_area)
+```
+
+```{r}
+ggplot(sub_area, aes(x = Density, y = change, col = NAME)) + geom_point() + xlab("Population density") + ylab("Change in house price") + ggtitle("Present day population density vs Change in house price after removing outliers")
+```
+
+
+```{r}
+ggplot(sub_area, aes(x = Density, y = change)) + geom_point() + stat_smooth(method = "lm", formula = y ~ poly(x, 2), size = 1) + xlab("Population density") + ylab("Change in house price") + ggtitle("Polynomial relationship between population density vs change in house price")
+```
+
+
+```{r}
+west_df <- sub_area[sub_area$variable %in% west_states,]
+midwest_df <- sub_area[sub_area$variable %in% midwest_states,]
+northeast_df <- sub_area[sub_area$variable %in% northeast_states,]
+south_df <- sub_area[sub_area$variable %in% south_states,]
+```
+
+
+
+```{r}
+g1 <- ggplot(west_df, aes(x = Density, y = change)) + geom_point() + ggtitle("WEST") + geom_smooth()
+g2 <- ggplot(midwest_df, aes(x = Density, y = change)) + geom_point() + ggtitle("MIDWEST")+ geom_smooth()
+g3 <- ggplot(northeast_df, aes(x = Density, y = change)) + geom_point() + ggtitle("NORTHEAST")+ geom_smooth()
+g4 <- ggplot(south_df, aes(x = Density, y = change)) + geom_point() + ggtitle("SOUTH")+ geom_smooth()
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+
+# Part 3: Population density
+
+```{r}
+population_2010 <- get_decennial(geography = "state", variables = "P001001", year = 2010,
+summary_var = "P001001", geometry = TRUE) %>%
+mutate(pct = 100 * (value / summary_value))
+```
+
+
+```{r}
+population_2000 <- get_decennial(geography = "state", variables = "P001001", year = 2000,
+summary_var = "P001001", geometry = TRUE) %>%
+mutate(pct = 100 * (value / summary_value))
+```
+
+
+```{r}
+population_1990 <- get_decennial(geography = "state", variables = "P0010001", year = 1990,
+summary_var = "P0010001", geometry = TRUE) %>%
+mutate(pct = 100  * (value / summary_value))
+```
+
+```{r}
+population_2018 <- read_csv("pop18.csv")
+# head(population_2018)
+```
+
+```{r}
+colnames(population_2018)[colnames(population_2018) == "POPESTIMATE2018"] <- "summary_value"
+head(population_2018)
+```
+
+
+```{r}
+population_2010$NAME = toupper(population_2010$NAME)
+population_1990$NAME = toupper(population_1990$NAME)
+population_2000$NAME = toupper(population_2000$NAME)
+population_2018$NAME = toupper(population_2018$NAME)
+head(population_2018)
+```
+
+
+```{r}
+head(mean_year)
+```
+
+
+```{r}
+mean_year <- merge(mean_year, df, by = "variable")
+head(mean_year)
+```
+
+
+```{r}
+mean_year <- merge(mean_year, area, by = "NAME")
+head(mean_year)
+```
+
+
+```{r}
+data_10 <- subset(mean_year, mean_year$Year == 2010)
+data_90 <- subset(mean_year, mean_year$Year == 1990)
+data_00 <- subset(mean_year, mean_year$Year == 2000)
+data_18 <- subset(mean_year, mean_year$Year == 2018)
+```
+
+
+```{r}
+head(data_18)
+```
+
+
+
+```{r}
+data_10 <- merge(data_10, population_2010, by = "NAME")
+data_00 <- merge(data_00, population_2000, by = "NAME")
+data_90 <- merge(data_90, population_1990, by = "NAME")
+data_18 <- merge(data_18, population_2018, by = "NAME")
+head(data_18)
+```
+
+
+```{r}
+data_10$diff <- data_10$value.x - data_00$value.x
+data_10$pdiff <- data_10$summary_value - data_00$summary_value
+head(data_10)
+```
+
+
+
+
+```{r}
+data_18$diff <- data_18$value - data_10$value.x
+data_18$pdiff <- data_18$summary_value - data_10$summary_value
+head(data_18)
+```
+
+
+```{r}
+data_00$diff <- data_00$value.x - data_90$value.x
+data_00$pdiff <- data_00$summary_value - data_90$summary_value
+head(data_00)
+```
+
+
+```{r}
+g1 <- ggplot(data_18, aes(x = pdiff, y = diff)) + geom_point() + xlab("Difference in population") + ylab("Difference in house price") + ggtitle(" 2018 minus 2010")+geom_smooth()
+
+g2 <- ggplot(data_10, aes(x = pdiff, y = diff)) + geom_point() + xlab("Difference in population") + ylab("Difference in house price") + ggtitle("2010 minus 2000")+geom_smooth()
+
+g3 <- ggplot(data_00, aes(x = pdiff, y = diff)) + geom_point() + xlab("Difference in population") + ylab("Difference in house price") + ggtitle("2000 minus 1990")+geom_smooth()
+
+grid.arrange(g1,g2,g3, nrow = 1)
+```
+
+
+
+
+```{r}
+head(data_00)
+```
+
+
+```{r}
+west_df <- data_18[data_18$variable %in% west_states,]
+midwest_df <- data_18[data_18$variable %in% midwest_states,]
+northeast_df <- data_18[data_18$variable %in% northeast_states,]
+south_df <- data_18[data_18$variable %in% south_states,]
+```
+
+
+```{r}
+
+g1 <- ggplot(west_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("WEST") +geom_smooth()
+g2 <- ggplot(midwest_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("MIDWEST")+geom_smooth()
+g3 <- ggplot(northeast_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("NORTHEAST")+geom_smooth()
+g4 <- ggplot(south_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("SOUTH")+geom_smooth()
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+```{r}
+head(data_10)
+```
+
+
+```{r}
+west_df <- data_10[data_10$variable.x %in% west_states,]
+midwest_df <- data_10[data_10$variable.x %in% midwest_states,]
+northeast_df <- data_10[data_10$variable.x %in% northeast_states,]
+south_df <- data_10[data_10$variable.x %in% south_states,]
+```
+
+
+```{r}
+
+g1 <- ggplot(west_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("WEST") +geom_smooth()
+g2 <- ggplot(midwest_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("MIDWEST")+geom_smooth()
+g3 <- ggplot(northeast_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("NORTHEAST")+geom_smooth()
+g4 <- ggplot(south_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("SOUTH")+geom_smooth()
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+
+
+```{r}
+west_df <- data_00[data_00$variable.x %in% west_states,]
+midwest_df <- data_00[data_00$variable.x %in% midwest_states,]
+northeast_df <- data_00[data_00$variable.x %in% northeast_states,]
+south_df <- data_00[data_00$variable.x %in% south_states,]
+```
+
+
+```{r}
+
+g1 <- ggplot(west_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("WEST") +geom_smooth()
+g2 <- ggplot(midwest_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("MIDWEST")+geom_smooth()
+g3 <- ggplot(northeast_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("NORTHEAST")+geom_smooth()
+g4 <- ggplot(south_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("SOUTH")+geom_smooth()
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+

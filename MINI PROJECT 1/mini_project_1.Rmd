@@ -1,0 +1,679 @@
+---
+title: "Mini Project 1 Initial Submission"
+author: "Ruchik Rohit Dama,Aniket Kale, Shashank Kumar, Sumanth Gopalkrishna"
+date: "9/29/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(ggplot2)
+library(tidycensus)
+library(stringr)
+library(tidyverse)
+library(gridExtra)
+census_api_key("b58a893ab08bf54aa71a88588839c192abdb915a")
+```
+## Question 1
+
+### Load the data
+
+```{r}
+cpi_data=read_xls("State_and_US_SA.xls", range = 'A6:BA546', col_names = TRUE)
+cpi_data1=read_xls("State_and_US_SA.xls", range = 'A6:BA546', col_names = TRUE)
+cpi=read.csv(file = 'cpi.csv')
+```
+
+
+```{r}
+tail(cpi)
+```
+
+
+
+
+```{r}
+col_2019=subset(cpi, cpi$Year == 2019)
+vals=col_2019$Value
+cpi$cpi_2019 <- rep(vals, times = 73)
+#head(cpi)
+```
+
+### Removed the data prior to 1975.
+```{r}
+cpi=cpi[which(cpi$Year>1974),]
+#head(cpi)
+```
+
+### Splitted the month column and stored it in the Month and Year Columns
+
+
+```{r}
+cpi_temp=str_split_fixed(cpi_data$Month, "M", 2)
+cpi_data1$Year=as.numeric(cpi_temp[,1])
+cpi_data1$Month=as.numeric(cpi_temp[,2])
+cpi_data$Year=as.numeric(cpi_temp[,1])
+cpi_data$Month=as.numeric(cpi_temp[,2])
+#head(cpi_data)
+```
+
+### Merging cpi_data and cpi dateset
+```{r}
+cpi_data = merge(cpi_data, cpi, by = c("Year"),inplace=TRUE)
+```
+
+
+### Renaming United States seasonally adjusted to usprice 
+```{r}
+colnames(cpi_data)[colnames(cpi_data) == "United States seasonally adjusted"] = "US"
+head(cpi_data)
+```
+
+
+
+
+```{r}
+cpi_data[,3:53] = (cpi_data$cpi_2019*cpi_data[,3:53]/cpi_data$Value) 
+head(cpi_data)
+```
+```{r}
+cpi_data$US = (cpi_data$cpi_2019*cpi_data$US/cpi_data$Value) 
+head(cpi_data)
+```
+### Question 1.1:- How  have  house  prices  in  the  U.S  changed  since  1975,  afteradjusting for inflation (i.e. relative to the CPI?) 
+### Plloting the graph between years v/s change in value before and after adjusting inflation.
+```{r}
+#ggplot(cpi_data1,aes(x = Year , y = `United States seasonally adjusted`))+geom_line()+labs(title = "Year v/s change in value",x=" Year",y="US seasonally Adjusted")
+```
+
+```{r}
+ggplot(cpi_data,aes(x = Year , y = US))+geom_line()+labs(title = "Year v/s change in value",x=" Year",y="US seasonally Adjusted")  
+```
+
+SOME EXPLANATION HERE. 
+### Loading  the statecodes text file
+
+```{r}
+state_codes_df = read.delim(file = "statecodes.txt", header = FALSE, sep = "", dec = ".")
+tail(cpi_data)
+```
+
+
+
+```{r}
+state_codes=state_codes_df$V2
+head(cpi_data)
+```
+
+### Pivoting the data from wide to long.
+```{r}
+state_data=cpi_data[1:54]
+state_data1=state_data %>% 
+ pivot_longer(
+   cols =state_codes,
+   names_to = "variable",
+   values_to = "value",
+   values_drop_na = TRUE
+ )
+```
+```{r}
+head(state_data)
+```
+
+
+### Finding the mean of values.
+```{r}
+state_mean=aggregate(value~variable + Year,data=state_data1,mean)
+```
+### Question 1.2:- How have changes in prices varied by state?
+### Plotting graphs for each state
+
+
+```{r}
+west_states = c("WA", "MT", "OR", "ID", "WY", "CA", "NV", "UT", "CO", "AZ", "NM", "HI", "AK")
+midwest_states = c("ND", "MN", "SD", "NE", "IA", "KS", "MO", "WI", "MI", "IL", "IN", "OH")
+northeast_states = c("PA", "NJ", "NY", "CT", "RI", "MA", "VT", "NH", "ME")
+south_states = c("OK", "TX", "AR", "LA", "MS", "AL", "TN", "KY", "GA", "FL", "SC", "NC", "WV", "VA", "DC", "MD", "DE")
+west_data = state_mean[state_mean$variable %in% west_states,]
+midwest_data = state_mean[state_mean$variable %in% midwest_states,]
+northeast_data = state_mean[state_mean$variable %in% northeast_states,]
+south_data = state_mean[state_mean$variable %in% south_states,]
+```
+
+```{r}
+head(west_data)
+```
+
+
+```{r}
+west_mean=aggregate(value~variable+Year,data=west_data,mean)
+midwest_mean=aggregate(value~variable+Year,data=midwest_data,mean)
+northeast_mean=aggregate(value~variable+Year,data=northeast_data,mean)
+south_mean=aggregate(value~variable+Year,data=south_data,mean)
+```
+
+```{r}
+west_plot <- ggplot(west_mean, aes(x=Year, y = value)) + geom_line() 
+west_plot + facet_wrap(~variable, ncol = 6,scales = "free_x")  + theme_minimal()+theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+
+```{r}
+midwest_plot <- ggplot(midwest_mean, aes(x=Year, y = value)) + geom_line() 
+midwest_plot + facet_wrap(~variable, ncol = 6)  + theme_minimal()+theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+```{r}
+northeast_plot <- ggplot(northeast_mean, aes(x=Year, y = value)) + geom_line() 
+northeast_plot + facet_wrap(~variable, ncol = 6)  + theme_minimal()+theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+
+```{r}
+south_plot <- ggplot(south_mean, aes(x=Year, y = value)) + geom_line() 
+south_plot + facet_wrap(~variable, ncol = 6)  + theme_minimal()+theme(axis.text.x = element_text(angle = 60, vjust = 0.5, hjust=1))
+```
+
+
+The state wise plots for house prices vs timeline are as above. They pretty much follow similar behaviour as
+we saw in the previous plot. Although, we do see certain states which have a sudden rise like DC i.e. District of
+Columbia. 
+
+### QUestion 1.3:- Which states have seen the biggest increases in real house prices, and which have seen the biggest decreases
+### States with Biggest Increases
+### Plotting graphs of top 4 states with biggest increases
+```{r}
+#state_plot <- ggplot(state_mean, aes(x=Year, y = value)) + geom_line() 
+#state_plot + facet_wrap(~variable, ncol = 7)  + theme_minimal()
+dc_df = subset(state_mean, state_mean$variable == "DC")
+cal_df = subset(state_mean, state_mean$variable == "CA")
+hi_df = subset(state_mean, state_mean$variable == "HI")
+wa_df = subset(state_mean, state_mean$variable == "WA")
+g1 = ggplot(dc_df, aes(x = Year, y = value)) + geom_line() + ggtitle("DISTRICT OF COLUMBIA") 
+g2 = ggplot(cal_df, aes(x = Year, y = value)) + geom_line() + ggtitle("CALIFORNIA")
+g3 = ggplot(hi_df, aes(x = Year, y = value)) + geom_line() + ggtitle("HAWAII")
+g4 = ggplot(wa_df, aes(x = Year, y = value)) + geom_line() + ggtitle("WASHINGTON")
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+### States with Biggest Decreases
+### Plotting graphs of top 4 states with biggest decreases
+```{r}
+ar_df = subset(state_mean, state_mean$variable == "AR")
+oh_df = subset(state_mean, state_mean$variable == "OH")
+ok_df = subset(state_mean, state_mean$variable == "OK")
+wv_df = subset(state_mean, state_mean$variable == "WV")
+g1 = ggplot(ar_df, aes(x = Year, y = value)) + geom_line() + ggtitle("ARKANSAS") 
+g2 = ggplot(oh_df, aes(x = Year, y = value)) + geom_line() + ggtitle("OHIO")
+g3 = ggplot(ok_df, aes(x = Year, y = value)) + geom_line() + ggtitle("OKLOHOMA")
+g4 = ggplot(wv_df, aes(x = Year, y = value)) + geom_line() + ggtitle("WEST VIRGINIA")
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+### Question 1.4:- Have changes in prices within each state mostly followed the same basicpattern,  and are there outliers to that pattern
+
+the house prices within each state have mostly followed the basic pattern of rises and falls cycle. And we
+have observed outliers where they defy that pattern by showing a continuous drop cycle or rise cycle. The
+outlier states are West Virginia, Arkansas, District of Columbia, California, Washington. There
+might be more as well. 
+
+### Question 1.5:- Do the typical patterns vary between thefour regions (Northeast, Midwest, South, and West)?
+
+### Grpah for 4 regions namely:-
+### Plotting graphs of west, midwest, northeast and south states.
+
+
+```{r}
+west_mean1=aggregate(value~Year,data=west_data,mean)
+midwest_mean1=aggregate(value~Year,data=midwest_data,mean)
+northeast_mean1=aggregate(value~Year,data=northeast_data,mean)
+south_mean1=aggregate(value~Year,data=south_data,mean)
+#south_mean
+```
+
+```{r}
+g1 = ggplot(west_mean1, aes(x = Year, y = value)) + geom_line() + ggtitle("WEST") 
+g2 = ggplot(midwest_mean1, aes(x = Year, y = value)) + geom_line() + ggtitle("MIDWEST")
+g3 = ggplot(northeast_mean1, aes(x = Year, y = value)) + geom_line() + ggtitle("NORTHEAST")
+g4 = ggplot(south_mean1, aes(x = Year, y = value)) + geom_line() + ggtitle("SOUTH")
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+The regions also pretty much follow the same trend as the overall house prices.
+Northeast region has a gradual rise and so does the West region. The period 1980-1990 was a consistently
+low patch for all except the Northeast region. 
+
+### Part 2:
+
+```{r}
+# import libararies
+
+library(tidyverse)
+library(broom)
+library(readxl)
+library(tidycensus)
+library(arm)
+library(MASS)
+#census_api_key("10f0d49b7a43755878e4706e12c9b552b96428f7")
+
+```
+
+```{r}
+#read data files
+cpi = read.csv("cpi.csv")
+pop = read.csv("population.csv")
+areas = read.csv("https://raw.githubusercontent.com/jakevdp/data-USstates/master/state-areas.csv", stringsAsFactors=FALSE, fileEncoding="latin1")
+
+scode = read.delim("statecodes.txt", header=F, sep=" ")
+hpi = read_excel("State_and_US_SA.xls", skip=5)
+```
+
+```{r}
+# loading tidycensus data
+# census20 =  get_decennial(geography = "state", 
+#                        variables = "P001001", 
+#                        year = 2020)
+# census10 =  get_decennial(geography = "state", 
+#                        variables = "P001001", 
+#                        year = 2010)
+# census00 =  get_decennial(geography = "state", 
+#                        variables = "P001001", 
+#                        year = 2000)
+# census90 = get_decennial(geography = "state", 
+#                        variables = "P0010001", 
+#                        year = 1990)
+# View(census10)
+```
+
+```{r}
+# head(areas)
+
+# density.00 = merge(
+#   x=census00,
+#   y=areas,
+#   by.x="NAME", by.y="state")
+# density.00 = density.00%>%
+#   mutate(density = value/area..sq..mi.)
+```
+
+```{r}
+# Pre-process population df
+names(pop)[2] = "state"
+names(pop)[5] = "total.1970"
+names(pop)[6] = "total.1980"
+names(pop)[7] = "total.1990"
+names(pop)[8] = "total.2000"
+names(pop)[9] = "total.2010"
+names(pop)[10] = "total.2008.2012"
+pop = pop[,c( "state",
+              "total.1970",
+              "total.1980",
+              "total.1990",
+              "total.2000",
+              "total.2010",
+              "total.2008.2012"
+              )]
+# head(pop)
+```
+
+```{r}
+# computing population density for all the states, after merging with areas df
+pop.density = merge(
+  x=pop,
+  y=areas,
+  by.x="state", by.y="state")
+
+pop.density = pop.density %>%
+  mutate(desity.1970 = total.1970/area..sq..mi.,
+        desity.1980 = total.1980/area..sq..mi.,
+        desity.1990 = total.1990/area..sq..mi.,
+        desity.2000 = total.2000/area..sq..mi.,
+        desity.2010 = total.2010/area..sq..mi.,
+        desity.2008.2012 = total.2008.2012/area..sq..mi.
+)
+pop.density = merge(
+  x=pop.density%>% mutate(state = toupper(state)),
+  y=scode,
+  by.x="state", by.y="V3")
+# pop.density
+```
+```{r}
+
+
+
+pop.density = dplyr::select(pop.density, -c("V1", "V4", "V5"))
+names(pop.density)[length(names(pop.density))] = "ST"
+# head(pop.density)
+```
+
+```{r}
+hpi.dec = hpi %>% filter(
+  Month %in% c("1980M12", "1990M12", "2000M12", "2010M12", "2019M12")
+)
+```
+
+
+```{r}
+scode = scode %>% filter(
+  V2 != ""
+)
+print("Updated rows:")
+print(nrow(scode))
+```
+
+```{r}
+hpi.dec.t = as.data.frame(t(hpi.dec))
+names(hpi.dec.t) <- as.matrix(hpi.dec.t[1, ])
+hpi.dec.t <- hpi.dec.t[-1, ]
+hpi.dec.t[] <- lapply(hpi.dec.t, function(x) type.convert(as.character(x)))
+hpi.dec.t <- cbind(ST = rownames(hpi.dec.t), hpi.dec.t)
+rownames(hpi.dec.t) <- 1:nrow(hpi.dec.t)
+# head(hpi.dec.t)
+```
+```{r}
+ 
+pop.hpi.merged = merge(
+  x=hpi.dec.t,
+  y=pop.density,
+  by.x="ST", by.y="ST")
+names(pop.hpi.merged)[2] = "hpi.1980"
+names(pop.hpi.merged)[3] = "hpi.1990"
+names(pop.hpi.merged)[4] = "hpi.2000"
+names(pop.hpi.merged)[5] = "hpi.2010"
+names(pop.hpi.merged)[6] = "hpi.2019"
+
+# head(pop.hpi.merged)
+```
+```{r}
+colors <- c("1980" = "black", "1990" = "blue", "2000" = "darkgreen", "2010" = "orange")
+
+pop.hpi.merged %>%
+  ggplot(aes(x=hpi.1980, y =desity.1980, color="1980")) +geom_point() +
+  geom_point(data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))+
+  labs(y = "HPI",
+         x = "Population Density",
+         color = "Legend")+
+    scale_color_manual(values = colors)+
+  geom_smooth(method = "lm" ,se=F)+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))+
+  facet_wrap(~state)
+```
+```{r}
+colors <- c("1980" = "black", "1990" = "blue", "2000" = "darkgreen", "2010" = "orange")
+
+pop.hpi.merged %>%
+  ggplot(aes(y=hpi.1980, x =desity.1980, color="1980")) +
+  geom_point() +
+  geom_point(data = pop.hpi.merged, aes(y=hpi.1990, x =desity.1990, col = "1990"))+
+  geom_point(data = pop.hpi.merged, aes(y=hpi.2000, x =desity.2000, col = "2000"))+
+  geom_point(data = pop.hpi.merged, aes(y=hpi.2010, x =desity.2010, col = "2010"))+
+  labs(y = "HPI",
+         x = "Population Density",
+         color = "Legend")+
+    scale_color_manual(values = colors)+
+  geom_smooth(method = "lm" ,se=F)+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(y=hpi.1990, x =desity.1990, col = "1990"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(y=hpi.2000, x =desity.2000, col = "2000"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(y=hpi.2010, x =desity.2010, col = "2010"))
+```
+
+```{r}
+colors <- c("1980" = "black", "1990" = "blue", "2000" = "darkgreen", "2010" = "orange")
+
+pop.hpi.merged %>%
+  ggplot(aes(x=hpi.1980, y =desity.1980, color="1980")) +
+  geom_point() +
+  geom_point(data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))+
+  labs(x = "HPI",
+         y = "Population Density",
+         color = "Legend")+
+    scale_color_manual(values = colors)+
+  geom_smooth(method = "lm" ,se=F)+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_smooth(method = "lm" ,se=F,data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))
+```
+
+#### Outliers:
+* There are two influencial outliers for every year.
+* Instead of completely removing outliers, we can try to down weigh them. Because these points represent two states and they just cannot be eliminated.
+
+```{r}
+
+# finding outliers
+pop.hpi.merged %>%
+  filter(desity.1980>500 | desity.1990>500 | desity.2000>500 | desity.2010>500)
+```
+
+method = rlm, se=F, col = "orange",
+              method.args=list(psi = psi.bisquare)
+              
+
+```{r}
+
+# after using rlm
+colors <- c("1980" = "black", "1990" = "blue", "2000" = "darkgreen", "2010" = "orange")
+
+pop.hpi.merged %>%
+  ggplot(aes(x=hpi.1980, y =desity.1980, color="1980")) +
+  geom_point() +
+  geom_point(data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_point(data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))+
+  labs(x = "HPI",
+         y = "Population Density",
+         color = "Legend")+
+    scale_color_manual(values = colors)+
+  geom_smooth(method = rlm ,se=F)+
+  geom_smooth(method = rlm,method.args = list(psi.bisquare) ,se=F,data = pop.hpi.merged, aes(x=hpi.1990, y =desity.1990, col = "1990"))+
+  geom_smooth(method = rlm,method.args = list(psi.bisquare) ,se=F,data = pop.hpi.merged, aes(x=hpi.2000, y =desity.2000, col = "2000"))+
+  geom_smooth(method = rlm,method.args = list(psi.bisquare) ,se=F,data = pop.hpi.merged, aes(x=hpi.2010, y =desity.2010, col = "2010"))
+
+```
+
+
+### QUESTION 3:-
+
+### Loading the Data
+
+
+```{r}
+population_2018 = get_acs(geography = "state", 
+              variables = c(Total = "B01003_001"), 
+              year = 2018)
+
+```
+
+```{r}
+head(population_2018)
+```
+
+
+
+
+```{r}
+population=read.csv(file = 'population.csv')
+#(population)
+```
+```{r}
+colnames(state_codes_df)[colnames(state_codes_df) == "V2"] <- "variable"
+
+colnames(state_codes_df)[colnames(state_codes_df) == "V3"] <- "NAME"
+state_codes_df$NAME <- toupper(state_codes_df$NAME)
+```
+
+
+```{r}
+#head(state_codes_df)
+```
+
+### Storing the data for 2018, 2010, 2000, 1990 year.
+
+```{r}
+state_mean <- merge(state_mean, state_codes_df, by = "variable")
+#head(state_mean)
+```
+```{r}
+pop_10 <- subset(state_mean, state_mean$Year == 2010)
+pop_90 <- subset(state_mean, state_mean$Year == 1990)
+pop_00 <- subset(state_mean, state_mean$Year == 2000)
+pop_18 <- subset(state_mean, state_mean$Year == 2018)
+```
+
+```{r}
+
+colnames(population)[colnames(population) == "NHGIS.Integrated.State.Name"] <- "NAME"
+#head(population)
+population$NAME <- toupper(population$NAME)
+```
+
+
+
+```{r}
+population_1990=population[c(2,7)]
+population_2000=population[c(2,8)]
+population_2010=population[c(2,9)]
+#population_2018=population_2018[c(2,4)]
+#head(population_1990)
+```
+```{r}
+
+population_2018$NAME = toupper(population_2018$NAME)
+#head(population_2018)
+```
+```{r}
+#head(pop_10)
+```
+
+
+```{r}
+colnames(population_1990)[colnames(population_1990) == "X1990..Persons..Total"] <- "Total_1990"
+colnames(population_2000)[colnames(population_2000) == "X2000..Persons..Total"] <- "Total_2000"
+colnames(population_2010)[colnames(population_2010) == "X2010..Persons..Total"] <- "Total_2010"
+colnames(population_2018)[colnames(population_2018) == "estimate"] <- "Total_2018"
+```
+
+### Merging datasets to get a common dataset for each year.
+
+```{r}
+data_10 <- merge(pop_10, population_2010, by = "NAME")
+data_00 <- merge(pop_00, population_2000, by = "NAME")
+data_90 <- merge(pop_90, population_1990, by = "NAME")
+data_18 <- merge(pop_18, population_2018, by = "NAME")
+```
+
+```{r}
+colnames(pop_90)[colnames(pop_90) == "V3"] <- "NAME"
+colnames(pop_00)[colnames(pop_00) == "V3"] <- "NAME"
+colnames(pop_10)[colnames(pop_10) == "V3"] <- "NAME"
+
+```
+
+```{r}
+data_18=data_18[c("NAME","value","Total_2018")]
+data_00=data_00[c("NAME","value","Total_2000")]
+data_10=data_10[c("NAME","value","Total_2010")]
+data_90=data_90[c("NAME","value","Total_1990")]
+
+```
+
+### Finding change in house prices and change in population.
+```{r}
+data_10$pdiff <- data_10$Total_2010 - data_00$Total_2000
+data_18$pdiff <- data_18$Total_2018 - data_10$Total_2010
+data_00$pdiff <- data_00$Total_2000 - data_90$Total_1990
+data_10$diff <- data_10$value - data_00$value
+data_18$diff <- data_18$value - data_10$value
+data_00$diff <- data_00$value - data_90$value
+```
+
+```{r}
+#head(data_00)
+```
+
+### Plotting the graphs for change in house price and population
+
+```{r}
+g1 = ggplot(data_18, aes(x = pdiff, y = diff)) + geom_point() + xlab("Difference in population") + ylab("Difference in house price") + ggtitle(" 2018 minus 2010")+geom_smooth()
+
+g2 = ggplot(data_10, aes(x = pdiff, y = diff)) + geom_point() + xlab("Difference in population") + ylab("Difference in house price") + ggtitle("2010 minus 2000")+geom_smooth()
+
+g3 = ggplot(data_00, aes(x = pdiff, y = diff)) + geom_point() + xlab("Difference in population") + ylab("Difference in house price") + ggtitle("2000 minus 1990")+geom_smooth()
+
+grid.arrange(g1,g2,g3, nrow = 1)
+```
+ 
+```{r}
+data_18 = merge(data_18, state_codes_df, by = "NAME")
+data_10 = merge(data_10, state_codes_df, by = "NAME")
+data_00 = merge(data_00, state_codes_df, by = "NAME")
+data_90 = merge(data_90, state_codes_df, by = "NAME")
+
+
+```
+
+```{r}
+west_df = data_18[data_18$variable %in% west_states,]
+midwest_df = data_18[data_18$variable %in% midwest_states,]
+northeast_df = data_18[data_18$variable %in% northeast_states,]
+south_df = data_18[data_18$variable %in% south_states,]
+```
+
+
+### plotting the graphs for west, midwest, northeast, south for change in house prices and population for every year.
+
+```{r}
+g1 = ggplot(west_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("WEST") +geom_smooth()
+g2 = ggplot(midwest_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("MIDWEST")+geom_smooth()
+g3 = ggplot(northeast_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("NORTHEAST")+geom_smooth()
+g4 = ggplot(south_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("SOUTH")+geom_smooth()
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+```{r}
+west_df = data_10[data_10$variable %in% west_states,]
+midwest_df = data_10[data_10$variable %in% midwest_states,]
+northeast_df = data_10[data_10$variable %in% northeast_states,]
+south_df = data_10[data_10$variable %in% south_states,]
+```
+
+```{r}
+g1 = ggplot(west_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("WEST") +geom_smooth()
+g2 = ggplot(midwest_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("MIDWEST")+geom_smooth()
+g3 = ggplot(northeast_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("NORTHEAST")+geom_smooth()
+g4 = ggplot(south_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("SOUTH")+geom_smooth()
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+```{r}
+west_df = data_00[data_10$variable %in% west_states,]
+midwest_df = data_00[data_00$variable %in% midwest_states,]
+northeast_df = data_00[data_00$variable %in% northeast_states,]
+south_df = data_00[data_00$variable %in% south_states,]
+```
+
+
+```{r}
+g1 = ggplot(west_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("WEST") +geom_smooth()
+g2 = ggplot(midwest_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("MIDWEST")+geom_smooth()
+g3 = ggplot(northeast_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("NORTHEAST")+geom_smooth()
+g4 = ggplot(south_df, aes(x = pdiff, y = diff)) + geom_point() + ggtitle("SOUTH")+geom_smooth()
+grid.arrange(g1,g2,g3,g4, nrow = 2)
+```
+
+
+```{r}
+v17 <- load_variables(2017, "acs5", cache = TRUE)
+
+View(v17)
+
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

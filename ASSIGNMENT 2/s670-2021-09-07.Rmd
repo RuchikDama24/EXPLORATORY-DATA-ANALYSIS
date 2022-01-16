@@ -1,0 +1,70 @@
+---
+title: "In-class 9/7/21"
+author: "S470/670"
+date: "9/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+load("lattice.RData")
+```
+
+## Fly eyes
+
+Try drawing a scatterplot of "facet" against temperature for the fly data set.
+
+```{r}
+ggplot(fly, insaes(x = temperature, y = facet)) + geom_point()
+```
+
+This looks better if we use geom_jitter():
+
+```{r}
+ggplot(fly, aes(x = temperature, y = facet)) +
+  geom_jitter(height = 0.25, width = 0.5, size = 0.7)
+```
+
+Find the average of facet for each temperature:
+
+```{r}
+facet.means = fly %>% group_by(temperature) %>%
+  summarise(facet = mean(facet))
+facet.means
+```
+
+```{r}
+gg = ggplot(fly, aes(x = temperature, y = facet)) +
+  geom_jitter(height = 0.25, width = 0.5, size = 0.7)
+gg + geom_point(data = facet.means, size = 2, color = "orange") +
+  geom_smooth(data = fly, method = "lm", se = FALSE)
+```
+
+Fit a linear model using lm():
+
+```{r}
+facet.lm = lm(facet ~ temperature, data = fly)
+facet.lm
+library(arm)
+display(facet.lm)
+```
+
+Create a data frame with fitted values and residuals:
+
+```{r}
+library(broom)
+facet.lm.df = augment(facet.lm)
+#View(facet.lm.df)
+ggplot(facet.lm.df, aes(x = temperature, y = .resid)) + geom_jitter(width = 0.5)
+```
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,48 @@
+---
+title: "In-class 8/26/21"
+author: "S470/670"
+date: "8/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+NBAraw = read.csv("nba2017-18.csv", header = TRUE)
+```
+
+```{r}
+height.list = strsplit(as.character(NBAraw$Ht), "-")
+height.list = matrix(unlist(height.list), ncol = 2, byrow = T)
+feet = as.numeric(height.list[, 1])
+inches = as.numeric(height.list[, 2])
+Height = 12 * feet + inches
+NBAraw$Height = Height
+```
+
+Select the Golden State Warriors:
+
+```{r}
+Warriors = dplyr::filter(NBAraw, Tm == "GSW")
+```
+
+Draw a dot plot of heights (with names):
+
+```{r}
+ggplot(Warriors, aes(x = Height, y = Player)) + geom_point()
+```
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,140 @@
+---
+title: "s670-HW2"
+author: "Ruchik Rohit Dama"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(arm)
+library(broom)
+
+```
+
+### Loading the Data
+Using read.delim to load the txt file into table format.
+
+
+```{r}
+vehicles = read.delim(file = "vehicles.txt", header = TRUE, sep = "", dec = ".")
+```
+
+### Question 1:- By transforming the data to “wide form” or otherwise, estimate the mean number of vehiclesowned per household for each county in the data set.  Plot the distribution of this variable.
+
+
+Converting the data into wide format using pivot_wider.
+```{r}
+ vehicles_wide=vehicles %>% 
+pivot_wider(names_from = variable, values_from = c(estimate, moe))
+vehicles_wide
+
+```
+
+Calculating the mean number of vehicles per household
+```{r}
+vehicles_wide$mean_vehicles=((vehicles_wide$estimate_cars1+vehicles_wide$estimate_cars2*2+vehicles_wide$estimate_cars3*3+vehicles_wide$estimate_cars4*4)/(vehicles_wide$estimate_cars0+vehicles_wide$estimate_cars1+vehicles_wide$estimate_cars2+vehicles_wide$estimate_cars3+vehicles_wide$estimate_cars4))
+
+vehicles_wide
+
+```
+Distribution of mean_vehicles
+
+```{r}
+ggplot(data=vehicles_wide, aes(x=mean_vehicles)) +geom_histogram(alpha=0.8,position="identity",fill="#8A2BE2",color="black")+
+  xlab("Mean Vehicles owned per household") +
+  ylab("count of mean vehicles")+
+  ggtitle("Histogram Distribution of mean vehicles owned per household for each County" )
+```
+
+
+### Question 2:- Plot vehicles owned (y-axis) against median income (x-axis) for each county.  Add the linearregression line.  How well does the line fit?
+
+Calculating total number of cars owned 
+
+```{r}
+vehicles_wide$'total_vehicles'= (vehicles_wide$estimate_cars1+vehicles_wide$estimate_cars2*2+vehicles_wide$estimate_cars3*3+vehicles_wide$estimate_cars4*4)
+vehicles_wide
+```
+Plotting scatterplot for median_income v/s mean vehicles owned per household for each county.
+
+```{r}
+gg_total_median =ggplot(vehicles_wide,aes(x = estimate_median_income, y = mean_vehicles))+geom_jitter(height = 0.5, width = 0.5, size = 0.7)+labs(title = "Median income per county v/s mean vehicles per household with Regressions Line",x=" median income per county",y="mean vehicles per household for each county")+ stat_smooth(method='lm', se = FALSE)
+gg_total_median
+```
+
+#### The data points are spread across the whole graph but the majority of the points are concentrated near median income of 50,000 and 60,000. The regression line does not seems to be a decent fit on the graph.
+
+
+
+### QUestion 3:- Plot vehicles owned against median income using a log scale on thex-axis for each county.Add the linear regression line.  Does this line fit any better?
+
+Plotting scatterplot for  log of the median_income v/s mean vehicles owned per household for each county.
+
+```{r}
+gg_total_median_log =ggplot(vehicles_wide,aes(x = estimate_median_income, y = mean_vehicles))+geom_jitter(height = 0.25, width = 0.5, size = 0.7)+scale_x_log10()+labs(title = "Log of Median income per county v/s mean vehicles per household with Regressions Line",x="Log of median income",y="mean vehicles per household for each county")+  geom_smooth(method='lm')
+gg_total_median_log
+```
+
+#### The above graph is plotted between log of the median income and mean vehicles owned per household for each county. The data points are more spread out on the graph than the data points of median income v/s mean vehicles owned per household graph. So, the regression line does seems to be a good fit for the above graph. So, using the log of the median income seems to be  better than the median income.
+
+
+
+### Question 4:- Fit a linear regression that predicts vehicles owned using median income for each county.  Listthe  ten  counties  with  the  lowest  (most  negative)  residuals.   Do  these  seem  like  the  easiestplaces to live without a car?
+
+
+#### So, first used lm() to fit a linear model that predicts mean vehicles owned per household for each county using median income. Then added a residual column in my table and arranged the table in ascending order with respect to the residual column and then listing the top 10 counties with lowest residuals.
+
+```{r}
+vehicles_wide_df=lm(mean_vehicles~estimate_median_income,data=vehicles_wide)
+vehicles_wide_df=augment(vehicles_wide_df)
+vehicles_wide$residual=vehicles_wide_df$.resid
+vehicles_wide_residual=vehicles_wide %>% arrange(vehicles_wide$residual)
+vehicles_wide_residual$cars0_per=(vehicles_wide_residual$estimate_cars0/vehicles_wide_residual$estimate_total)*100
+vehicles_wide_residual$NAME[1:10]
+```
+
+
+
+Finding the top 10 countries with lowest percentage of zero cars.
+```{r}
+vehicles_wide_cars0_per=vehicles_wide_residual[order(vehicles_wide_residual$cars0_per,decreasing = TRUE),]
+(vehicles_wide_cars0_per$NAME[1:10])
+```
+
+#### From the above two tables we see that, from the ten counties with least residuals that there are eight counties namely "New York County, New York", "Kusilvak Census Area, Alaska" , "Northwest Arctic Borough, Alaska", "Kings County, New York", "Bronx County, New York", "Nome Census Area, Alaska", "Bethel Census Area, Alaska", "North Slope Borough, Alaska", are also in top ten counties with lowest percentage of zero cars. So, from the given dataset, we can safely say that these counties seem easiest to live without a car
+
+
+```{r}
+ggplot(vehicles_wide_residual,aes(x = estimate_median_income, y = residual))+geom_jitter(height = 0.25, width = 0.5, size = 0.7)+labs(title = "Median income per county v/s Residual Values",x=" median income per county",y="Residual Values")+geom_abline(slope=0)
+```
+
+#### while looking at the residual plot of median income v/s residual, we can see that the data points are concentrated between 40,000 to 60,000, but the residual plots should be more scatteresd around zero. 
+
+
+### Question 5:- Fit a linear regression that predicts vehicles owned using log median income for each county.List the ten counties with the lowest (most negative) residuals.  Do these seem any more likethe easiest places to live without a car?
+
+####  first used lm() to fit a linear model that predicts mean vehicles owned per household for each county using log of the median income. Then added a residual column in my table and arranged the table in ascending order with respect to the residual column and then listing the top 10 counties with lowest residuals.
+
+
+```{r}
+vehicles_wide$median_log=(log(vehicles_wide$estimate_median_income))
+vehicles_wide_df=lm(mean_vehicles~median_log,data=vehicles_wide)
+vehicles_wide_df=augment(vehicles_wide_df)
+vehicles_wide$residual_log=vehicles_wide_df$.resid
+vehicles_wide_residual_log=vehicles_wide[order(vehicles_wide$residual),]
+vehicles_wide_residual_log$cars0_per=(vehicles_wide_residual_log$estimate_cars0/vehicles_wide_residual_log$estimate_total)*100
+vehicles_wide_residual_log$NAME[1:10]
+```
+
+```{r}
+ggplot(vehicles_wide_residual_log,aes(x = median_log, y = residual))+geom_jitter(height = 0.25, width = 0.5, size = 0.7)+labs(title = "Log of Median income per county v/s Residual Values",x=" log of median income per county",y="Residual Values")+geom_abline(slope=0)
+```
+
+#### From the above table we see that, from the ten counties with least residuals of log of the median income are same as ten counties with least residuals with median income. From the ten counties eight counties are also in top ten counties with lowest percentage of zero cars. So, from the given dataset, we can safely say that these counties seem easiest to live without a car. There is no difference between the data for log of median price and median price.
+
+#### while looking at the residual plot of log of median income v/s residual, we can see that the data points are much more scattered around zero, so we can say that the linear model predictions are correct on average.So, from looking at the residual plots we can say that using log of median income is better than using median income as the predictor.
